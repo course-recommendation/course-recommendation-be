@@ -1,0 +1,2 @@
+rename table feature_sentiment_recommendation_result to fs_recommendation_result;
+

@@ -1,0 +1,16 @@
+package com.hcmus.course_recommendation.common.exception;
+
+import lombok.Getter;
+
+@Getter
+public enum GlobalErrorCode {
+	INTERNAL_SERVER_ERROR,
+	NOT_FOUND,
+	JWT_EXPIRED,
+	EMAIL_DUPLICATED,
+	EMAIL_NOT_FOUND,
+	WRONG_PASSWORD,
+	NO_AUTH_HEADER,
+	USER_NOT_FOUND,
+	UNAUTHORIZED, REQUEST_METHOD_NOT_SUPPORT, FORBIDDEN
+}

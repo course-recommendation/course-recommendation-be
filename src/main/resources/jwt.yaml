@@ -1,0 +1,5 @@
+security:
+  jwt:
+    expiration: ${JWT_EXPIRATION}
+    rsa-private-key: classpath:certs/private.pem
+    rsa-public-key: classpath:certs/public.pem
