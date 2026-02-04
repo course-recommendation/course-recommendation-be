@@ -42,11 +42,19 @@ public class PostService {
 
 	@Transactional(readOnly = true)
 	public List<PostDetail> findPostDetails(FindPostDetailsRequest request, Sort sort) {
-		var courses = courseRepository.findByAlgorithmAndDataset(request.getCourseDomain().getAlgorithm(),
-			request.getCourseDomain().getDataset());
+		List<Course> courses;
+		if (request.getCourseIdsRequest().isFetchAll()) {
+			courses = courseRepository.findByAlgorithmAndDataset(request.getCourseDomain().getAlgorithm(),
+				request.getCourseDomain().getDataset());
+		} else {
+			courses = courseRepository.findByAlgorithmAndDatasetAndIdIn(request.getCourseDomain().getAlgorithm(),
+				request.getCourseDomain().getDataset(), request.getCourseIdsRequest().getData());
+		}
+
 		var courseIds = courses.stream().map(Course::getId).toList();
 
 		var posts = postRepository.findByCourseIdIn(courseIds, sort);
+
 		return toPostDetails(posts);
 	}
 

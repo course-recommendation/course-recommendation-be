@@ -12,4 +12,6 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 	List<Course> findByIdIn(List<String> ids);
 
 	List<Course> findByAlgorithmAndDataset(CourseAlgorithm algorithm, CourseDataset dataset);
+
+	List<Course> findByAlgorithmAndDatasetAndIdIn(CourseAlgorithm algorithm, CourseDataset dataset, List<String> ids);
 }

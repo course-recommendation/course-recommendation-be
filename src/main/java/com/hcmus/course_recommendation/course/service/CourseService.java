@@ -10,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hcmus.course_recommendation.course.dto.AddUserCourseRequest;
 import com.hcmus.course_recommendation.course.dto.CourseDetail;
+import com.hcmus.course_recommendation.course.dto.GetCourseDetailsRequest;
 import com.hcmus.course_recommendation.course.dto.GetCoursesOfUserRequest;
+import com.hcmus.course_recommendation.course.dto.GetCoursesRequest;
 import com.hcmus.course_recommendation.course.dto.UpdateUserCoursesRequest;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.model.CourseAlgorithm;
@@ -93,10 +95,17 @@ public class CourseService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<CourseDetail> getAllCourses(CourseAlgorithm algorithm, CourseDataset dataset, String userId) {
+	public List<CourseDetail> getCourseDetails(GetCourseDetailsRequest request) {
 		return toCourseDetails(
-			courseRepository.findByAlgorithmAndDataset(algorithm, dataset).stream().map(Course::getId).toList(),
-			userId);
+			courseRepository.findByAlgorithmAndDataset(request.getDomain().getAlgorithm(), request.getDomain()
+				.getDataset()).stream().map(Course::getId).toList(),
+			request.getUserId());
+	}
+
+	@Transactional(readOnly = true)
+	public List<Course> getCourses(GetCoursesRequest request) {
+		return courseRepository.findByAlgorithmAndDataset(request.getDomain().getAlgorithm(),
+			request.getDomain().getDataset());
 	}
 
 	@Transactional(readOnly = true)

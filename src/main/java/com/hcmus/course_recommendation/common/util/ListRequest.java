@@ -11,11 +11,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class RequestList<T> {
+public class ListRequest<T> {
 	private boolean fetchAll = true;
 	private List<T> data;
 
-	public static <T> RequestList<T> defaultInstance() {
-		return new RequestList<>();
+	public static <T> ListRequest<T> defaultInstance() {
+		return new ListRequest<>();
 	}
 }

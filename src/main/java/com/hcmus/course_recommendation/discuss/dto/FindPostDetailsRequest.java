@@ -1,5 +1,6 @@
 package com.hcmus.course_recommendation.discuss.dto;
 
+import com.hcmus.course_recommendation.common.util.ListRequest;
 import com.hcmus.course_recommendation.course.dto.CourseDomain;
 
 import lombok.AllArgsConstructor;
@@ -15,4 +16,5 @@ import lombok.Setter;
 @Builder
 public class FindPostDetailsRequest {
 	private CourseDomain courseDomain;
+	private ListRequest<String> courseIdsRequest = ListRequest.defaultInstance();
 }
