@@ -9,9 +9,10 @@ import com.hcmus.course_recommendation.course.model.CourseAlgorithm;
 import com.hcmus.course_recommendation.course.model.CourseDataset;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
-	List<Course> findByIdIn(List<String> ids);
+	List<Course> findByCourseIdIn(List<String> courseIds);
 
 	List<Course> findByAlgorithmAndDataset(CourseAlgorithm algorithm, CourseDataset dataset);
 
-	List<Course> findByAlgorithmAndDatasetAndIdIn(CourseAlgorithm algorithm, CourseDataset dataset, List<String> ids);
+	List<Course> findByAlgorithmAndDatasetAndCourseIdIn(CourseAlgorithm algorithm, CourseDataset dataset,
+		List<String> courseIds);
 }

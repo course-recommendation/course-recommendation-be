@@ -47,11 +47,11 @@ public class PostService {
 			courses = courseRepository.findByAlgorithmAndDataset(request.getCourseDomain().getAlgorithm(),
 				request.getCourseDomain().getDataset());
 		} else {
-			courses = courseRepository.findByAlgorithmAndDatasetAndIdIn(request.getCourseDomain().getAlgorithm(),
+			courses = courseRepository.findByAlgorithmAndDatasetAndCourseIdIn(request.getCourseDomain().getAlgorithm(),
 				request.getCourseDomain().getDataset(), request.getCourseIdsRequest().getData());
 		}
 
-		var courseIds = courses.stream().map(Course::getId).toList();
+		var courseIds = courses.stream().map(Course::getCourseId).toList();
 
 		var posts = postRepository.findByCourseIdIn(courseIds, sort);
 

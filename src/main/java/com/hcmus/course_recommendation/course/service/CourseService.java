@@ -36,7 +36,9 @@ public class CourseService {
 		var deletingUserCourseIds = userCourseRepository.findByUserIdAndStatusAndCourseDomain(request.getUserId(),
 			request.getUserCourseStatus(), request.getCourseDomain().getAlgorithm(),
 			request.getCourseDomain().getDataset()).stream().map(UserCourse::getId).toList();
+
 		userCourseRepository.deleteAllById(deletingUserCourseIds);
+		
 		userCourseRepository.saveAll(request.getCourseIds()
 			.stream()
 			.map(courseId -> UserCourse.builder()
@@ -74,19 +76,19 @@ public class CourseService {
 	@Transactional(readOnly = true)
 	public Map<String, CourseDetail> getCourseIdToCourseDetailsByCourseIds(List<String> courseIds, String userId) {
 		return toCourseDetails(courseIds, userId).stream()
-			.collect(Collectors.toMap(courseDetail -> courseDetail.course().getId(), Function.identity()));
+			.collect(Collectors.toMap(courseDetail -> courseDetail.course().getCourseId(), Function.identity()));
 	}
 
 	@Transactional(readOnly = true)
 	public List<CourseDetail> toCourseDetails(List<String> courseIds, String userId) {
-		var courses = courseRepository.findByIdIn(courseIds);
+		var courses = courseRepository.findByCourseIdIn(courseIds);
 		var userCourses = userCourseRepository.findByUserId(userId);
 		var courseIdToUserCourses = userCourses.stream().collect(Collectors.groupingBy(UserCourse::getCourseId));
 
 		return courses.stream()
 			.map(course -> CourseDetail.builder()
 				.course(course)
-				.userCourseStatuses(courseIdToUserCourses.getOrDefault(course.getId(), List.of())
+				.userCourseStatuses(courseIdToUserCourses.getOrDefault(course.getCourseId(), List.of())
 					.stream()
 					.map(UserCourse::getStatus)
 					.toList())
@@ -98,7 +100,7 @@ public class CourseService {
 	public List<CourseDetail> getCourseDetails(GetCourseDetailsRequest request) {
 		return toCourseDetails(
 			courseRepository.findByAlgorithmAndDataset(request.getDomain().getAlgorithm(), request.getDomain()
-				.getDataset()).stream().map(Course::getId).toList(),
+				.getDataset()).stream().map(Course::getCourseId).toList(),
 			request.getUserId());
 	}
 
@@ -110,12 +112,12 @@ public class CourseService {
 
 	@Transactional(readOnly = true)
 	public List<Course> findCoursesByIds(List<String> courseIds) {
-		return courseRepository.findByIdIn(courseIds);
+		return courseRepository.findByCourseIdIn(courseIds);
 	}
 
 	@Transactional(readOnly = true)
 	public Map<String, Course> getCourseIdToCourseMapByCourseIds(List<String> courseIds) {
-		return findCoursesByIds(courseIds).stream().collect(Collectors.toMap(Course::getId, Function.identity()));
+		return findCoursesByIds(courseIds).stream().collect(Collectors.toMap(Course::getCourseId, Function.identity()));
 	}
 
 	@Transactional(readOnly = true)
@@ -123,6 +125,7 @@ public class CourseService {
 		return courseRepository.findByAlgorithmAndDataset(CourseAlgorithm.FS, dataset)
 			.stream()
 			.collect(
-				Collectors.toMap(Course::getId, course -> ((FSCourseExtraData)course.getExtraData()).itemSentiments()));
+				Collectors.toMap(Course::getCourseId,
+					course -> ((FSCourseExtraData)course.getExtraData()).itemSentiments()));
 	}
 }

@@ -17,7 +17,7 @@ public interface UserCourseRepository extends JpaRepository<UserCourse, Long> {
 		SELECT uc
 		FROM UserCourse uc
 		JOIN Course c
-		ON uc.courseId = c.id
+		ON uc.courseId = c.courseId
 		WHERE TRUE
 		AND uc.userId = :userId
 		AND uc.status = :status
