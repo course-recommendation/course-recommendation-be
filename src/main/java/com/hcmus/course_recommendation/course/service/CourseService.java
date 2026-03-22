@@ -1,5 +1,6 @@
 package com.hcmus.course_recommendation.course.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -24,9 +25,11 @@ import com.hcmus.course_recommendation.course.model.FSItemSentiment;
 import com.hcmus.course_recommendation.course.model.FsCourseExtraData;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 import com.hcmus.course_recommendation.course.model.UserCourseStatus;
+import com.hcmus.course_recommendation.course.model.UserCourseStatusEnum;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseStatusRepository;
+import com.hcmus.course_recommendation.recommendation.model.FilterCoursesOption;
 
 import lombok.RequiredArgsConstructor;
 
@@ -153,9 +156,29 @@ public class CourseService {
 	}
 
 	@Transactional(readOnly = true)
-	public Map<String, List<FSItemSentiment>> getFSItemIdToItemSentiments(Dataset dataset) {
+	public Map<String, List<FSItemSentiment>> getFsItemIdToItemSentiments(Dataset dataset, String userId,
+		List<FilterCoursesOption> filterCoursesOptions, List<String> customFilteredCourseCodes) {
+		var planningCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndDomain(userId,
+			UserCourseStatusEnum.PLANNING, Algorithm.FS, dataset).stream().map(UserCourseStatus::getCourseId).toList();
+		var completedCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndDomain(userId,
+			UserCourseStatusEnum.COMPLETED, Algorithm.FS, dataset).stream().map(UserCourseStatus::getCourseId).toList();
+		var customFilteredCourseIds = courseRepository.findByAlgorithmAndDatasetAndCodeIn(Algorithm.FS, dataset,
+			customFilteredCourseCodes).stream().map(Course::getId).toList();
+
+		var finalFilteredCourseIds = new ArrayList<Long>();
+		if (filterCoursesOptions.contains(FilterCoursesOption.PLANNING)) {
+			finalFilteredCourseIds.addAll(planningCourseIds);
+		}
+		if (filterCoursesOptions.contains(FilterCoursesOption.COMPLETED)) {
+			finalFilteredCourseIds.addAll(completedCourseIds);
+		}
+		if (filterCoursesOptions.contains(FilterCoursesOption.CUSTOM)) {
+			finalFilteredCourseIds.addAll(customFilteredCourseIds);
+		}
+
 		return courseRepository.findByAlgorithmAndDataset(Algorithm.FS, dataset)
 			.stream()
+			.filter(course -> !finalFilteredCourseIds.contains(course.getId()))
 			.collect(
 				Collectors.toMap(Course::getCode,
 					course -> ((FsCourseExtraData)course.getExtraData()).itemSentiments()));

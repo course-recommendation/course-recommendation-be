@@ -35,6 +35,4 @@ out/
 
 ### VS Code ###
 .vscode/
-/src/main/resources/certs/private.pem
-/src/main/resources/certs/public.pem
 .env

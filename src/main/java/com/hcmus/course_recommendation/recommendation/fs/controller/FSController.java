@@ -36,7 +36,7 @@ public class FSController {
 	public RestResponse<ServerFSRecommendationResult> getFeatureSentimentRefinedRecommendation(
 		@RequestBody FSRefinedRecommendationRequest request, Principal principal) {
 		request.setUserId(principal.getName());
-		return RestResponse.make(fsService.getFSRefinedRecommendation(request));
+		return RestResponse.make(fsService.getFsRefinedRecommendation(request));
 	}
 
 	@GetMapping("/fs/latest-recommendation")

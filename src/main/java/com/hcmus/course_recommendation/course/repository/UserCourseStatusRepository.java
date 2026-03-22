@@ -32,7 +32,7 @@ public interface UserCourseStatusRepository extends JpaRepository<UserCourseStat
 
 	@Modifying
 	@Query("""
-		DELETE FROM UserCourseStatus 
+		DELETE FROM UserCourseStatus
 		WHERE userId = :userId
 		AND courseId = :courseId
 		""")

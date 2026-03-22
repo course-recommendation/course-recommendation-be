@@ -73,6 +73,8 @@ public class FSService {
 					.courseDetails(fsCategoryDetail.itemIds().stream().map(courseIdToCourseDetail::get).toList())
 					.build())
 				.toList())
+			.filterCoursesOptions(recommendationResult.getData().filterCoursesOptions())
+			.customFilteredCourseCodes(recommendationResult.getData().customFilteredCourseCodes())
 			.build();
 	}
 
@@ -97,7 +99,8 @@ public class FSService {
 		}
 
 		var attributeValues = recommendationService.getAttributeValues(request.getDataset(), Algorithm.FS);
-		var itemIdToItemSentiments = courseService.getFSItemIdToItemSentiments(request.getDataset());
+		var itemIdToItemSentiments = courseService.getFsItemIdToItemSentiments(request.getDataset(),
+			request.getUserId(), request.getFilterCoursesOptions(), request.getCustomFilteredCourseCodes());
 		var response = fsClient.getRecommendation(ClientFSRecommendationRequest.builder()
 			.attributes(attributeValues)
 			.itemIdToItemSentiments(fsMapper.toStringToClientFSItemSentiments(itemIdToItemSentiments))
@@ -105,7 +108,10 @@ public class FSService {
 				fsMapper.toStringToClientFSPreferenceConfigure(request.getAttributeToPreferenceConfigure()))
 			.build());
 
-		var fsRecommendationResultData = fsMapper.toFeatureSentimentRecommendationResultData(response);
+		var fsRecommendationResultData = fsMapper.toFeatureSentimentRecommendationResultData(response).toBuilder()
+			.filterCoursesOptions(request.getFilterCoursesOptions())
+			.customFilteredCourseCodes(request.getCustomFilteredCourseCodes())
+			.build();
 
 		var savedFSRecommendationResult = recommendationResultRepository.save(
 			new RecommendationResult(null, request.getDataset(), Algorithm.FS, request.getUserId(),
@@ -115,13 +121,16 @@ public class FSService {
 	}
 
 	@Transactional
-	public ServerFSRecommendationResult getFSRefinedRecommendation(FSRefinedRecommendationRequest request) {
+	public ServerFSRecommendationResult getFsRefinedRecommendation(FSRefinedRecommendationRequest request) {
 		var attributeValues = recommendationService.getAttributeValues(request.getDataset(), Algorithm.FS);
-		var itemIdToItemSentiments = courseService.getFSItemIdToItemSentiments(request.getDataset());
 		var recommendationResult = recommendationResultRepository.findById(request.getRecommendationId())
 			.orElseThrow(NotFoundException::new);
 		var recommendationResultData = recommendationResult.getData();
+		var itemIdToItemSentiments = courseService.getFsItemIdToItemSentiments(request.getDataset(),
+			request.getUserId(), recommendationResultData.filterCoursesOptions(),
+			recommendationResultData.customFilteredCourseCodes());
 		var itemTradeoffVector = recommendationResultData.itemIdToTradeoffVector().get(request.getItemId());
+
 		var clientRequest = ClientFSRefinedRecommendationRequest.builder()
 			.attributes(attributeValues)
 			.itemIdToItemSentiments(fsMapper.toStringToClientFSItemSentiments(itemIdToItemSentiments))
