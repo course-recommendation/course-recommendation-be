@@ -26,6 +26,7 @@ import lombok.Setter;
 @Builder(toBuilder = true)
 public class User {
 	@Id
+	@Builder.Default
 	private String id = UUID.randomUUID().toString();
 	private String email;
 	@JsonIgnore
