@@ -1,8 +1,6 @@
 package com.hcmus.course_recommendation.course.model;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,14 +14,14 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @Entity
-public class UserCourse {
+public class UserCourseRating {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	private String userId;
-	private String courseId;
-	@Enumerated(EnumType.STRING)
-	private UserCourseStatus status;
+	private Long courseId;
+	private String attributeValue;
+	private Integer score;
 }

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.hcmus.course_recommendation.course.dto.Domain;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.service.CourseService;
@@ -24,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-public class PostService {
+public class DiscussService {
 	private final PostRepository postRepository;
 	private final UserService userService;
 	private final PostCommentRepository postCommentRepository;
@@ -36,7 +37,7 @@ public class PostService {
 		postRepository.save(Post.builder()
 			.content(request.getContent())
 			.userId(request.getUserId())
-			.courseId(request.getCourseId())
+			.courseCode(request.getCourseCode())
 			.build());
 	}
 
@@ -44,33 +45,34 @@ public class PostService {
 	public List<PostDetail> findPostDetails(FindPostDetailsRequest request, Sort sort) {
 		List<Course> courses;
 		if (request.getCourseIdsRequest().isFetchAll()) {
-			courses = courseRepository.findByAlgorithmAndDataset(request.getCourseDomain().getAlgorithm(),
-				request.getCourseDomain().getDataset());
+			courses = courseRepository.findByAlgorithmAndDataset(request.getDomain().getAlgorithm(),
+				request.getDomain().getDataset());
 		} else {
-			courses = courseRepository.findByAlgorithmAndDatasetAndCourseIdIn(request.getCourseDomain().getAlgorithm(),
-				request.getCourseDomain().getDataset(), request.getCourseIdsRequest().getData());
+			courses = courseRepository.findByAlgorithmAndDatasetAndCodeIn(request.getDomain().getAlgorithm(),
+				request.getDomain().getDataset(), request.getCourseIdsRequest().getData());
 		}
 
-		var courseIds = courses.stream().map(Course::getCourseId).toList();
+		var courseIds = courses.stream().map(Course::getCode).toList();
 
-		var posts = postRepository.findByCourseIdIn(courseIds, sort);
+		var posts = postRepository.findByAlgorithmAndDatasetAndCourseCodeIn(request.getDomain().getAlgorithm(),
+			request.getDomain().getDataset(), courseIds, sort);
 
-		return toPostDetails(posts);
+		return toPostDetails(request.getDomain(), posts);
 	}
 
 	@Transactional(readOnly = true)
-	public List<PostDetail> toPostDetails(List<Post> posts) {
+	public List<PostDetail> toPostDetails(Domain domain, List<Post> posts) {
 		var userIds = posts.stream().map(Post::getUserId).toList();
 		var userIdToUser = userService.getUserIdToUserMapByUserIds(userIds);
 
-		var courseIds = posts.stream().map(Post::getCourseId).toList();
-		var courseIdToCourse = courseService.getCourseIdToCourseMapByCourseIds(courseIds);
+		var courseIds = posts.stream().map(Post::getCourseCode).toList();
+		var courseIdToCourse = courseService.getCourseIdToCourseMapByCourseIds(domain, courseIds);
 
 		return posts.stream()
 			.map(post -> PostDetail.builder()
 				.post(post)
 				.user(userIdToUser.get(post.getUserId()))
-				.course(courseIdToCourse.get(post.getCourseId()))
+				.course(courseIdToCourse.get(post.getCourseCode()))
 				.build())
 			.toList();
 	}

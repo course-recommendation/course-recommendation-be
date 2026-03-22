@@ -14,7 +14,7 @@ import lombok.Setter;
 @Setter
 @Builder
 public class GetCourseDetailsRequest {
-	private CourseDomain domain;
+	private Domain domain;
 
 	@JsonIgnore
 	private String userId;

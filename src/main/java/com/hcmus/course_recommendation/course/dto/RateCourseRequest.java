@@ -1,6 +1,7 @@
 package com.hcmus.course_recommendation.course.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -9,6 +10,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class GetCoursesRequest {
-	private Domain domain;
+@Builder
+public class RateCourseRequest {
+	private String attributeValue;
+	private Integer score;
 }

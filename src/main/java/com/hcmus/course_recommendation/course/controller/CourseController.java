@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.hcmus.course_recommendation.common.RestResponse;
 import com.hcmus.course_recommendation.course.dto.AddUserCourseRequest;
 import com.hcmus.course_recommendation.course.dto.CourseDetail;
+import com.hcmus.course_recommendation.course.dto.GetCourseDetailRequest;
 import com.hcmus.course_recommendation.course.dto.GetCourseDetailsRequest;
 import com.hcmus.course_recommendation.course.dto.GetCoursesOfUserRequest;
 import com.hcmus.course_recommendation.course.dto.GetCoursesRequest;
+import com.hcmus.course_recommendation.course.dto.RateCourseRequest;
 import com.hcmus.course_recommendation.course.dto.UpdateUserCoursesRequest;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.service.CourseService;
@@ -69,5 +71,22 @@ public class CourseController {
 	@GetMapping("/courses")
 	public RestResponse<List<Course>> getAllCourses(@ParameterObject GetCoursesRequest request) {
 		return RestResponse.make(courseService.getCourses(request));
+	}
+
+	@GetMapping("/courses/{courseCode}/detail")
+	public RestResponse<CourseDetail> getCourseDetails(@PathVariable String courseCode,
+		@ParameterObject GetCourseDetailRequest request, Principal principal) {
+		request.setUserId(principal.getName());
+		request.setCourseCode(courseCode);
+
+		return RestResponse.make(courseService.getCourseDetail(request));
+	}
+
+	@PutMapping("/courses/{courseId}/rating")
+	public RestResponse<Void> rateCourse(@PathVariable Long courseId, Principal principal,
+		@RequestBody RateCourseRequest request) {
+		courseService.rateCourse(principal.getName(), courseId, request.getAttributeValue(), request.getScore());
+
+		return RestResponse.make();
 	}
 }

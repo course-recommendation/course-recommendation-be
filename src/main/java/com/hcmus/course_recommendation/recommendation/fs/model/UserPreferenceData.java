@@ -5,7 +5,7 @@ import java.util.Map;
 import lombok.Builder;
 
 @Builder
-public record FSUserPreferenceData(
-	Map<String, Double> attributeToTargetSentimentScore
+public record UserPreferenceData(
+	Map<String, Double> attributeToScore
 ) {
 }

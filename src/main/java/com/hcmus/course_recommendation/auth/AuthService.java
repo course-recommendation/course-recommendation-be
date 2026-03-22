@@ -35,9 +35,10 @@ public class AuthService {
 
 	public void register(RegisterRequest request) {
 
-		var user = authMapper.toUser(request)
-			.setRoles(List.of(Role.USER))
-			.setPassword(passwordEncoder.encode(request.getPassword()));
+		var user = authMapper.toUser(request).toBuilder()
+			.roles(List.of(Role.USER))
+			.password(passwordEncoder.encode(request.getPassword()))
+			.build();
 
 		try {
 			userRepository.save(user);

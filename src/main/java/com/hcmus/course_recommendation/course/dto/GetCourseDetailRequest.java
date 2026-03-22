@@ -1,9 +1,6 @@
 package com.hcmus.course_recommendation.course.dto;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.hcmus.course_recommendation.course.model.UserCourseStatusEnum;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,10 +13,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class UpdateUserCoursesRequest {
+public class GetCourseDetailRequest {
+	private Domain domain;
+
+	@JsonIgnore
+	private String courseCode;
+
 	@JsonIgnore
 	private String userId;
-	private UserCourseStatusEnum userCourseStatus;
-	private List<Long> courseIds;
-	private Domain domain;
 }

@@ -4,15 +4,17 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.course.model.Course;
-import com.hcmus.course_recommendation.course.model.CourseAlgorithm;
-import com.hcmus.course_recommendation.course.model.CourseDataset;
+import com.hcmus.course_recommendation.course.model.Dataset;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
-	List<Course> findByCourseIdIn(List<String> courseIds);
+	List<Course> findByAlgorithmAndDataset(Algorithm algorithm, Dataset dataset);
 
-	List<Course> findByAlgorithmAndDataset(CourseAlgorithm algorithm, CourseDataset dataset);
+	List<Course> findByAlgorithmAndDatasetAndCodeIn(Algorithm algorithm, Dataset dataset,
+		List<String> courseCodes);
 
-	List<Course> findByAlgorithmAndDatasetAndCourseIdIn(CourseAlgorithm algorithm, CourseDataset dataset,
-		List<String> courseIds);
+	List<Course> findByDataset(Dataset dataset);
+
+	List<Course> findByIdIn(List<Long> ids);
 }

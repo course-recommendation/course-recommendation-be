@@ -4,7 +4,12 @@ import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.hcmus.course_recommendation.course.model.Algorithm;
+import com.hcmus.course_recommendation.course.model.Dataset;
+
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -24,9 +29,13 @@ public class Post {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+	@Enumerated(EnumType.STRING)
+	private Dataset dataset;
+	@Enumerated(EnumType.STRING)
+	private Algorithm algorithm;
 	private String userId;
 	private String content;
-	private String courseId;
+	private String courseCode;
 	@CreationTimestamp
 	private Instant createdAt;
 }

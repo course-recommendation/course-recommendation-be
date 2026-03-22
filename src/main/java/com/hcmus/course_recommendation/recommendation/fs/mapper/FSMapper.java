@@ -11,12 +11,12 @@ import com.hcmus.course_recommendation.recommendation.fs.client.dto.ClientFSPref
 import com.hcmus.course_recommendation.recommendation.fs.client.dto.ClientFSRecommendationResult;
 import com.hcmus.course_recommendation.recommendation.fs.client.dto.ClientFSTradeoffPair;
 import com.hcmus.course_recommendation.recommendation.fs.model.FSPreferenceConfigure;
-import com.hcmus.course_recommendation.recommendation.fs.model.FSRecommendationResultData;
 import com.hcmus.course_recommendation.recommendation.fs.model.FSTradeoffPair;
+import com.hcmus.course_recommendation.recommendation.fs.model.FsRecommendationResultData;
 
 @Mapper
 public interface FSMapper {
-	FSRecommendationResultData toFeatureSentimentRecommendationResultData(ClientFSRecommendationResult source);
+	FsRecommendationResultData toFeatureSentimentRecommendationResultData(ClientFSRecommendationResult source);
 
 	Map<String, ClientFSPreferenceConfigure> toStringToClientFSPreferenceConfigure(
 		Map<String, FSPreferenceConfigure> source);
@@ -31,4 +31,6 @@ public interface FSMapper {
 		Map<String, List<FSItemSentiment>> source);
 
 	List<ClientFSItemSentiment> toClientFSItemSentiments(List<FSItemSentiment> source);
+
+	List<FSItemSentiment> toFSItemSentiments(List<ClientFSItemSentiment> source);
 }

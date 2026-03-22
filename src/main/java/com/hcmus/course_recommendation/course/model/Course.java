@@ -21,21 +21,21 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @Entity
 public class Course {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private String courseId;
+	private String code;
 
 	@Enumerated(EnumType.STRING)
 	@JsonIgnore
-	private CourseAlgorithm algorithm;
+	private Algorithm algorithm;
 
 	@Enumerated(EnumType.STRING)
-	private CourseDataset dataset;
+	private Dataset dataset;
 
 	private String name;
 

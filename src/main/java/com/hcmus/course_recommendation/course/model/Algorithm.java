@@ -1,5 +1,5 @@
 package com.hcmus.course_recommendation.course.model;
 
-public enum CourseDataset {
-	FIT, CELLPHONE
+public enum Algorithm {
+	FS, TRI_RANK
 }

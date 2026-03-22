@@ -1,7 +1,7 @@
 package com.hcmus.course_recommendation.course.dto;
 
-import com.hcmus.course_recommendation.course.model.CourseAlgorithm;
-import com.hcmus.course_recommendation.course.model.CourseDataset;
+import com.hcmus.course_recommendation.course.model.Algorithm;
+import com.hcmus.course_recommendation.course.model.Dataset;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +14,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class CourseDomain {
-	private CourseAlgorithm algorithm;
-	private CourseDataset dataset;
+public class Domain {
+	private Algorithm algorithm;
+	private Dataset dataset;
 }

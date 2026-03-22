@@ -17,5 +17,5 @@ public class CreatePostRequest {
 	@JsonIgnore
 	private String userId;
 	private String content;
-	private String courseId;
+	private String courseCode;
 }

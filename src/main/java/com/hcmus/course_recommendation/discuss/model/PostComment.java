@@ -21,6 +21,7 @@ public class PostComment {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	private Long postId;
+	private String courseId;
 	private String userId;
 	private String content;
 }

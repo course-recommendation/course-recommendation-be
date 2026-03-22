@@ -5,11 +5,11 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-public record FSCourseExtraData(
+public record FsCourseExtraData(
 	List<FSItemSentiment> itemSentiments
 ) implements CourseExtraData {
 	@Override
-	public CourseAlgorithm getAlgorithm() {
-		return CourseAlgorithm.FS;
+	public Algorithm getAlgorithm() {
+		return Algorithm.FS;
 	}
 }

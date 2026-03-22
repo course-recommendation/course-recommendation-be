@@ -1,9 +1,7 @@
-package com.hcmus.course_recommendation.recommendation.fs.model;
+package com.hcmus.course_recommendation.recommendation.model;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
-import com.hcmus.course_recommendation.course.model.CourseDataset;
+import com.hcmus.course_recommendation.course.model.Algorithm;
+import com.hcmus.course_recommendation.course.model.Dataset;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -22,17 +20,14 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-@Entity(name = "fs_user_preference")
-public class FSUserPreference {
+@Entity
+public class Attribute {
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@GeneratedValue(strategy = GenerationType.AUTO)
 	private Long id;
-
 	@Enumerated(EnumType.STRING)
-	private CourseDataset dataset;
-
-	private String userId;
-
-	@JdbcTypeCode(SqlTypes.JSON)
-	private FSUserPreferenceData data;
+	private Algorithm algorithm;
+	@Enumerated(EnumType.STRING)
+	private Dataset dataset;
+	private String value;
 }
