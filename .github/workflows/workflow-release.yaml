@@ -1,74 +1,41 @@
-# name: Release Application
+name: Release Application
 
-# on:
-#   workflow_call:
-#     inputs:
-#       environment-name:
-#         description: "The name of the GitHub environment to use as context for this workflow"
-#         required: true
-#         type: string
-#       source_branch:
-#         description: "Branch to merge from"
-#         required: false
-#         type: string
-#         default: ""
+on:
+  workflow_call:
 
-# jobs:
-#   release-backend:
-#     name: Release Backend Server
-#     environment:
-#       name: ${{ inputs.environment-name }}
-#     runs-on: ubuntu-22.04
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v6
-#         with:
-#           ref: ${{ inputs.source_branch }}
+jobs:
+  release-backend:
+    name: Release Backend Server
+    runs-on: ubuntu-22.04
+    env:
+      PROJECT_NAME: courserecom
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-#       - name: Azure CLI Login
-#         uses: azure/login@v2
-#         with:
-#           client-id: ${{ vars.AZURE_CLIENT_ID_TERRAFORM }}
-#           tenant-id: ${{ vars.AZURE_TENANT_ID }}
-#           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Azure CLI Login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID_TERRAFORM }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-#       - name: Setup Environment Variables
-#         shell: bash
-#         run: cat devops/backend-env/${{ inputs.environment-name }}.env >> $GITHUB_ENV
-
-#       - name: Deploy Backend to Container App
-#         uses: azure/cli@v2
-#         with:
-#           azcliversion: latest
-#           inlineScript: | # pragma: allowlist secret
-#             az containerapp update -n ca-neovaude-${{ inputs.environment-name }} -g rg-neovaude-${{ inputs.environment-name }} \
-#               --image acrneovaude${{ inputs.environment-name }}.azurecr.io/backend:latest \
-#               --replace-env-vars \
-#                 TIMESTAMP=$(date +%s) \
-#                 AZURE_OPENAI_API_KEY=secretref:azure-openai-api-key \
-#                 AZURE_OPENAI_ENDPOINT=https://aif-neovaude-${{ inputs.environment-name }}.cognitiveservices.azure.com/ \
-#                 AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4.1 \
-#                 AZURE_OPENAI_DEPLOYMENT_NAME_FUNCTION=gpt-4.1-mini \
-#                 AZURE_OPENAI_API_VERSION=2025-01-01-preview \
-#                 AZURE_OPENAI_FALLBACK_API_KEY=secretref:azure-openai-api-key-fallback \
-#                 AZURE_OPENAI_FALLBACK_ENDPOINT=https://aif-neovaude-${{ inputs.environment-name }}-fallback.cognitiveservices.azure.com/ \
-#                 AZURE_OPENAI_FALLBACK_DEPLOYMENT_NAME=gpt-4.1 \
-#                 AZURE_OPENAI_FALLBACK_DEPLOYMENT_NAME_FUNCTION=gpt-4.1-mini \
-#                 APP_NAME="SpyCode API" \
-#                 APP_VERSION=1.0.0 \
-#                 DEBUG=True \
-#                 LOG_LEVEL=INFO \
-#                 DATABASE_URL=secretref:database-url \
-#                 BACKEND_CORS_ORIGINS='["http://localhost:3000","http://localhost:8457","https://localhost:53000","${{ env.FRONTEND_URL }}"]' \
-#                 JWT_SECRET_KEY=secretref:jwt-secret-key \
-#                 JWT_ALGORITHM=HS256 \
-#                 ACCESS_TOKEN_EXPIRE_MINUTES=1440 \
-#                 REFRESH_TOKEN_EXPIRE_DAYS=7 \
-#                 AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING=secretref:communication-service-connection-string \
-#                 AZURE_STORAGE_CONNECTION_STRING=secretref:storage-account-connection-string \
-#                 ENV=${{ env.ENV }} \
-#                 AZURE_EMAIL_SENDER_ADDRESS=${{ env.AZURE_EMAIL_SENDER_ADDRESS }} \
-#                 BACKEND_URL=${{ env.BACKEND_URL }} \
-#                 FRONTEND_EMAIL_VERIFICATION_SUCCESS_URL=${{ env.FRONTEND_EMAIL_VERIFICATION_SUCCESS_URL }} \
-#                 FRONTEND_EMAIL_VERIFICATION_ERROR_URL=${{ env.FRONTEND_EMAIL_VERIFICATION_ERROR_URL }} \
-#                 FRONTEND_PASSWORD_RESET_URL=${{ env.FRONTEND_PASSWORD_RESET_URL }}
+      - name: Deploy Backend to Container App
+        uses: azure/cli@v3
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              -n ca-${{ env.PROJECT_NAME }} \
+              -g rg-${{ env.PROJECT_NAME }} \
+              --image acr${{ env.PROJECT_NAME }}.azurecr.io/backend:latest \
+              --replace-env-vars \
+                TIMESTAMP=$(date +%s) \
+                MYSQL_DATABASE_NAME=secretref:mysql-database-name \
+                MYSQL_URL=secretref:mysql-url \
+                MYSQL_USERNAME=secretref:mysql-username \
+                MYSQL_ROOT_PASSWORD=secretref:mysql-root-password \
+                MYSQL_PORT=3306 \
+                JWT_EXPIRATION=99999999999 \
+                FRONTEND_URL=https://nice-sky-09f590500.4.azurestaticapps.net
