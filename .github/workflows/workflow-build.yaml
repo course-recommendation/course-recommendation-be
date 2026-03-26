@@ -46,7 +46,10 @@ jobs:
           context: ./
           file: ./Dockerfile
           platforms: linux/amd64
+          push: true
           provenance: false
+          build-args: |
+            JAR_FILE=build/libs/*.jar
           tags: |
             ${{ env.ACR_NAME }}.azurecr.io/backend:latest
           cache-from: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/backend:latest
