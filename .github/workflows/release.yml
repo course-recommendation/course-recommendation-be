@@ -1,0 +1,32 @@
+name: Release to Environment
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+      - main
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/workflow-build.yaml
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit # pragma: allowlist secret
+
+  # release:
+  #   name: Release Application
+  #   needs: [ build, set-env ]
+  #   uses: ./.github/workflows/workflow-release.yaml
+  #   with:
+  #     environment-name: ${{ needs.set-env.outputs.environment-name }}
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   secrets: inherit
