@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       PROJECT_NAME: courserecom
+      APP_NAME: backend
       
     steps:
       - name: Checkout code
@@ -29,7 +30,7 @@ jobs:
             az containerapp update \
               -n ca-${{ env.PROJECT_NAME }} \
               -g rg-${{ env.PROJECT_NAME }} \
-              --image acr${{ env.PROJECT_NAME }}.azurecr.io/backend:latest \
+              --image acr${{ env.PROJECT_NAME }}.azurecr.io/${{ env.APP_NAME }}:latest \
               --replace-env-vars \
                 TIMESTAMP=$(date +%s) \
                 MYSQL_DATABASE_NAME=secretref:mysql-database-name \
