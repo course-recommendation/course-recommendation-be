@@ -10,7 +10,7 @@ jobs:
     env:
       PROJECT_NAME: courserecom
       APP_NAME: backend
-      
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -39,4 +39,5 @@ jobs:
                 MYSQL_ROOT_PASSWORD=secretref:mysql-root-password \
                 MYSQL_PORT=3306 \
                 JWT_EXPIRATION=99999999999 \
-                FRONTEND_URL=https://www.courserecom.site
+                FRONTEND_URL=https://www.courserecom.site \
+                AI_URL=https://ai.courserecom.site
