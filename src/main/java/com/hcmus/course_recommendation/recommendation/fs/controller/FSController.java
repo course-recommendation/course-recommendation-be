@@ -52,7 +52,7 @@ public class FSController {
 		return RestResponse.make();
 	}
 
-	@PutMapping("/update-sentiments")
+	@PutMapping("/fs/update-sentiments")
 	public RestResponse<Void> updateCoursesSentiments(@RequestParam Dataset dataset) {
 		fsService.updateCoursesSentiments(dataset);
 		return RestResponse.make();

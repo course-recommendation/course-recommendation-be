@@ -141,7 +141,10 @@ public class FSService {
 			.build();
 
 		var response = fsClient.getRefinedRecommendation(clientRequest);
-		var data = fsMapper.toFeatureSentimentRecommendationResultData(response);
+		var data = fsMapper.toFeatureSentimentRecommendationResultData(response).toBuilder()
+			.filterCoursesOptions(recommendationResultData.filterCoursesOptions())
+			.customFilteredCourseCodes(recommendationResultData.customFilteredCourseCodes())
+			.build();
 		var savedFSRecommendationResult = recommendationResultRepository.save(
 			new RecommendationResult(null, request.getDataset(), Algorithm.FS, request.getUserId(), data));
 		return toServerFSRecommendationResult(request.getDataset(), savedFSRecommendationResult, request.getUserId());

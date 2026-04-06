@@ -11,6 +11,8 @@ import com.hcmus.course_recommendation.course.model.Dataset;
 public interface CourseRepository extends JpaRepository<Course, Long> {
 	List<Course> findByAlgorithmAndDataset(Algorithm algorithm, Dataset dataset);
 
+	List<Course> findByAlgorithmAndDatasetAndNameLike(Algorithm algorithm, Dataset dataset, String name);
+
 	List<Course> findByAlgorithmAndDatasetAndCodeIn(Algorithm algorithm, Dataset dataset,
 		List<String> courseCodes);
 

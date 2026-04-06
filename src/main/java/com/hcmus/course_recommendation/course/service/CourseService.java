@@ -122,8 +122,9 @@ public class CourseService {
 	@Transactional(readOnly = true)
 	public List<CourseDetail> getCourseDetails(GetCourseDetailsRequest request) {
 		return toCourseDetails(request.getDomain(),
-			courseRepository.findByAlgorithmAndDataset(request.getDomain().getAlgorithm(), request.getDomain()
-				.getDataset()).stream().map(Course::getCode).toList(),
+			courseRepository.findByAlgorithmAndDatasetAndNameLike(request.getDomain().getAlgorithm(),
+				request.getDomain()
+					.getDataset(), String.format("%%%s%%", request.getName())).stream().map(Course::getCode).toList(),
 			request.getUserId());
 	}
 

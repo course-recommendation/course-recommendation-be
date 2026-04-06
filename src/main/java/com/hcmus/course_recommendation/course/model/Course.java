@@ -38,6 +38,8 @@ public class Course {
 	private Dataset dataset;
 
 	private String name;
+	private String description;
+	private String thumbnailUrl;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	@JsonIgnore
