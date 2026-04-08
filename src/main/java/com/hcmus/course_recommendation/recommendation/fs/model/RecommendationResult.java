@@ -36,5 +36,5 @@ public class RecommendationResult {
 	private String userId;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private FsRecommendationResultData data;
+	private RecommendationResultData data;
 }

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.hcmus.course_recommendation.course.dto.CourseDetail;
+import com.hcmus.course_recommendation.course.model.FSItemSentiment;
 import com.hcmus.course_recommendation.recommendation.fs.model.FSPreferenceConfigure;
 import com.hcmus.course_recommendation.recommendation.fs.model.FSTradeoffPair;
 import com.hcmus.course_recommendation.recommendation.model.FilterCoursesOption;
@@ -18,6 +19,7 @@ public record ServerFSRecommendationResult(
 	List<ServerFSCategoryDetail> categoryDetails,
 	Map<String, List<FSTradeoffPair>> itemIdToTradeoffVector,
 	List<FilterCoursesOption> filterCoursesOptions,
-	List<String> customFilteredCourseCodes
+	List<String> customFilteredCourseCodes,
+	Map<String, List<FSItemSentiment>> itemIdToItemSentiments
 ) {
 }

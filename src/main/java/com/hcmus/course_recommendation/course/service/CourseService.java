@@ -121,6 +121,9 @@ public class CourseService {
 
 	@Transactional(readOnly = true)
 	public List<CourseDetail> getCourseDetails(GetCourseDetailsRequest request) {
+		if (request.getName() == null) {
+			request.setName("");
+		}
 		return toCourseDetails(request.getDomain(),
 			courseRepository.findByAlgorithmAndDatasetAndNameLike(request.getDomain().getAlgorithm(),
 				request.getDomain()
