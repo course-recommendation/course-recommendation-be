@@ -34,6 +34,8 @@ public class User {
 	private String firstName;
 	private String lastName;
 	private String avatarUrl;
+	@Builder.Default
+	private Boolean didSurvey = false;
 	@JsonIgnore
 	@JdbcTypeCode(SqlTypes.JSON)
 	private List<Role> roles;

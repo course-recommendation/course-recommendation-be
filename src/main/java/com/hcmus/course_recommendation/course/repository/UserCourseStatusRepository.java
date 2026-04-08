@@ -1,13 +1,13 @@
 package com.hcmus.course_recommendation.course.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
-import com.hcmus.course_recommendation.course.model.Dataset;
 import com.hcmus.course_recommendation.course.model.UserCourseStatus;
 import com.hcmus.course_recommendation.course.model.UserCourseStatusEnum;
 
@@ -22,11 +22,26 @@ public interface UserCourseStatusRepository extends JpaRepository<UserCourseStat
 		AND ucs.userId = :userId
 		AND ucs.status = :status
 		AND c.algorithm = :algorithm
-		AND c.dataset = :dataset
 		""")
-	List<UserCourseStatus> findByUserIdAndStatusAndDomain(String userId, UserCourseStatusEnum status,
-		Algorithm algorithm,
-		Dataset dataset);
+	List<UserCourseStatus> findByUserIdAndStatusAndAlgorithm(String userId, UserCourseStatusEnum status,
+		Algorithm algorithm);
+
+	Optional<UserCourseStatus> findByUserIdAndCourseIdAndStatus(String userId, Long courseId,
+		UserCourseStatusEnum status);
+
+	@Query("""
+		SELECT ucs
+		FROM UserCourseStatus ucs
+		JOIN Course c
+		ON ucs.courseId = c.id
+		WHERE TRUE
+		AND ucs.userId = :userId
+		AND c.algorithm = :algorithm
+		AND ucs.status <> :status
+		AND ucs.courseId IN (:courseIds)
+		""")
+	List<UserCourseStatus> findByUserIdAndAlgorithmAndNotStatusAndCourseIdIn(String userId, Algorithm algorithm,
+		UserCourseStatusEnum status, List<Long> courseIds);
 
 	List<UserCourseStatus> findByUserId(String userId);
 
@@ -35,6 +50,7 @@ public interface UserCourseStatusRepository extends JpaRepository<UserCourseStat
 		DELETE FROM UserCourseStatus
 		WHERE userId = :userId
 		AND courseId = :courseId
+		AND status <> :status
 		""")
-	void deleteByUserIdAndCourseId(String userId, String courseId);
+	void deleteByUserIdAndCourseIdAndStatusNot(String userId, Long courseId, UserCourseStatusEnum status);
 }

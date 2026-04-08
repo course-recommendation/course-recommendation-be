@@ -4,23 +4,21 @@ import java.security.Principal;
 import java.util.List;
 
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hcmus.course_recommendation.common.RestResponse;
-import com.hcmus.course_recommendation.course.dto.AddUserCourseRequest;
 import com.hcmus.course_recommendation.course.dto.CourseDetail;
 import com.hcmus.course_recommendation.course.dto.GetCourseDetailRequest;
 import com.hcmus.course_recommendation.course.dto.GetCourseDetailsRequest;
 import com.hcmus.course_recommendation.course.dto.GetCoursesOfUserRequest;
 import com.hcmus.course_recommendation.course.dto.GetCoursesRequest;
 import com.hcmus.course_recommendation.course.dto.RateCourseRequest;
-import com.hcmus.course_recommendation.course.dto.UpdateUserCoursesRequest;
+import com.hcmus.course_recommendation.course.dto.UpdateUserCourseStatusRequest;
+import com.hcmus.course_recommendation.course.dto.UpdateUserCourseStatusesRequest;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.service.CourseService;
 
@@ -33,24 +31,20 @@ public class CourseController {
 	}
 
 	@PutMapping("/me/courses")
-	public RestResponse<Void> updateUserCourses(@RequestBody UpdateUserCoursesRequest request, Principal principal) {
+	public RestResponse<Void> updateUserCourses(@RequestBody UpdateUserCourseStatusesRequest request,
+		Principal principal) {
 		request.setUserId(principal.getName());
-		courseService.updateUserCourses(request);
+		courseService.updateUserCourseStatuses(request);
 
 		return RestResponse.make();
 	}
 
-	@PostMapping("/me/courses")
-	public RestResponse<Void> addUserCourse(@RequestBody AddUserCourseRequest request, Principal principal) {
+	@PutMapping("/me/courses/{courseId}")
+	public RestResponse<Void> updateUserCourse(@RequestBody UpdateUserCourseStatusRequest request,
+		@PathVariable Long courseId, Principal principal) {
 		request.setUserId(principal.getName());
-		courseService.addUserCourse(request);
-
-		return RestResponse.make();
-	}
-
-	@DeleteMapping("/me/courses/{courseId}")
-	public RestResponse<Void> deleteUserCourse(@PathVariable String courseId, Principal principal) {
-		courseService.deleteUserCourse(principal.getName(), courseId);
+		request.setCourseId(courseId);
+		courseService.updateUserCourseStatus(request);
 
 		return RestResponse.make();
 	}

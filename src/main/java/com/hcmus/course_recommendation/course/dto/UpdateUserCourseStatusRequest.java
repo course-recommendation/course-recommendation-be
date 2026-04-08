@@ -14,9 +14,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class AddUserCourseRequest {
+public class UpdateUserCourseStatusRequest {
 	@JsonIgnore
 	private String userId;
 	private UserCourseStatusEnum status;
+	@JsonIgnore
 	private Long courseId;
 }

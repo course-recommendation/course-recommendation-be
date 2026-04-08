@@ -6,7 +6,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.hcmus.course_recommendation.course.dto.Domain;
+import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.service.CourseService;
@@ -45,28 +45,27 @@ public class DiscussService {
 	public List<PostDetail> findPostDetails(FindPostDetailsRequest request, Sort sort) {
 		List<Course> courses;
 		if (request.getCourseIdsRequest().isFetchAll()) {
-			courses = courseRepository.findByAlgorithmAndDataset(request.getDomain().getAlgorithm(),
-				request.getDomain().getDataset());
+			courses = courseRepository.findByAlgorithm(request.getAlgorithm());
 		} else {
-			courses = courseRepository.findByAlgorithmAndDatasetAndCodeIn(request.getDomain().getAlgorithm(),
-				request.getDomain().getDataset(), request.getCourseIdsRequest().getData());
+			courses = courseRepository.findByAlgorithmAndCodeIn(request.getAlgorithm(),
+				request.getCourseIdsRequest().getData());
 		}
 
 		var courseIds = courses.stream().map(Course::getCode).toList();
 
-		var posts = postRepository.findByAlgorithmAndDatasetAndCourseCodeIn(request.getDomain().getAlgorithm(),
-			request.getDomain().getDataset(), courseIds, sort);
+		var posts = postRepository.findByAlgorithmAndCourseCodeIn(request.getAlgorithm(),
+			courseIds, sort);
 
-		return toPostDetails(request.getDomain(), posts);
+		return toPostDetails(request.getAlgorithm(), posts);
 	}
 
 	@Transactional(readOnly = true)
-	public List<PostDetail> toPostDetails(Domain domain, List<Post> posts) {
+	public List<PostDetail> toPostDetails(Algorithm algorithm, List<Post> posts) {
 		var userIds = posts.stream().map(Post::getUserId).toList();
 		var userIdToUser = userService.getUserIdToUserMapByUserIds(userIds);
 
 		var courseIds = posts.stream().map(Post::getCourseCode).toList();
-		var courseIdToCourse = courseService.getCourseIdToCourseMapByCourseIds(domain, courseIds);
+		var courseIdToCourse = courseService.getCourseIdToCourseMapByCourseIds(algorithm, courseIds);
 
 		return posts.stream()
 			.map(post -> PostDetail.builder()

@@ -1,6 +1,7 @@
 package com.hcmus.course_recommendation.course.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.hcmus.course_recommendation.course.model.Algorithm;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +15,7 @@ import lombok.Setter;
 @Setter
 @Builder
 public class GetCourseDetailsRequest {
-	private Domain domain;
+	private Algorithm algorithm;
 	private String name;
 
 	@JsonIgnore

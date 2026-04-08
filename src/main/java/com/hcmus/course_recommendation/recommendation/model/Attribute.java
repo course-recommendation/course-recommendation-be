@@ -1,7 +1,6 @@
 package com.hcmus.course_recommendation.recommendation.model;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
-import com.hcmus.course_recommendation.course.model.Dataset;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -27,7 +26,5 @@ public class Attribute {
 	private Long id;
 	@Enumerated(EnumType.STRING)
 	private Algorithm algorithm;
-	@Enumerated(EnumType.STRING)
-	private Dataset dataset;
 	private String value;
 }

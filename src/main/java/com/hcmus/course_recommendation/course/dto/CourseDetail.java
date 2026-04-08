@@ -1,6 +1,5 @@
 package com.hcmus.course_recommendation.course.dto;
 
-import java.util.List;
 import java.util.Map;
 
 import com.hcmus.course_recommendation.course.model.Course;
@@ -11,7 +10,7 @@ import lombok.Builder;
 @Builder(toBuilder = true)
 public record CourseDetail(
 	Course course,
-	List<UserCourseStatusEnum> userCourseStatuses,
+	UserCourseStatusEnum userCourseStatus,
 	Map<String, Integer> userAttributeValueToRatingScore
 ) {
 }

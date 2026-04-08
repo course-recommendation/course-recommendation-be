@@ -34,9 +34,6 @@ public class Course {
 	@JsonIgnore
 	private Algorithm algorithm;
 
-	@Enumerated(EnumType.STRING)
-	private Dataset dataset;
-
 	private String name;
 	private String description;
 	private String thumbnailUrl;

@@ -1,7 +1,7 @@
 package com.hcmus.course_recommendation.discuss.dto;
 
 import com.hcmus.course_recommendation.common.util.ListRequest;
-import com.hcmus.course_recommendation.course.dto.Domain;
+import com.hcmus.course_recommendation.course.model.Algorithm;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,6 +15,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @Builder
 public class FindPostDetailsRequest {
-	private Domain domain;
+	private Algorithm algorithm;
 	private ListRequest<String> courseIdsRequest = ListRequest.defaultInstance();
 }

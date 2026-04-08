@@ -5,7 +5,6 @@ import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
-import com.hcmus.course_recommendation.course.model.Dataset;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -29,8 +28,6 @@ public class Post {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-	@Enumerated(EnumType.STRING)
-	private Dataset dataset;
 	@Enumerated(EnumType.STRING)
 	private Algorithm algorithm;
 	private String userId;

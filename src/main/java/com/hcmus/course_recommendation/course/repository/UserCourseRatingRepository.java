@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
-import com.hcmus.course_recommendation.course.model.Dataset;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 
 public interface UserCourseRatingRepository extends JpaRepository<UserCourseRating, Long> {
@@ -21,8 +20,7 @@ public interface UserCourseRatingRepository extends JpaRepository<UserCourseRati
 		SELECT ucr
 		FROM UserCourseRating ucr
 		JOIN Course c ON ucr.courseId = c.id
-		WHERE c.dataset = :dataset
-		AND c.algorithm = :algorithm
+		WHERE c.algorithm = :algorithm
 		""")
-	List<UserCourseRating> findByAlgorithmAndDataset(Algorithm algorithm, Dataset dataset);
+	List<UserCourseRating> findByAlgorithmAndDataset(Algorithm algorithm);
 }

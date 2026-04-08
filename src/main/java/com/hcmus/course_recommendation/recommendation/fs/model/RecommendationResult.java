@@ -4,7 +4,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
-import com.hcmus.course_recommendation.course.model.Dataset;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,9 +25,6 @@ public class RecommendationResult {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
-	@Enumerated(EnumType.STRING)
-	private Dataset dataset;
 
 	@Enumerated(EnumType.STRING)
 	private Algorithm algorithm;

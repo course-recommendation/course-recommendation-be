@@ -41,7 +41,12 @@ public class AuthService {
 			.build();
 
 		try {
-			userRepository.save(user);
+			var savedUser = userRepository.save(user);
+
+			// Save dummy avatar
+			userRepository.save(savedUser.toBuilder()
+				.avatarUrl(String.format("https://picsum.photos/seed/%s/1600/900", savedUser.getId()))
+				.build());
 		} catch (DataIntegrityViolationException exception) {
 			throw new BadRequestException(GlobalErrorCode.EMAIL_DUPLICATED);
 		}

@@ -6,11 +6,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hcmus.course_recommendation.common.RestResponse;
-import com.hcmus.course_recommendation.course.model.Dataset;
 import com.hcmus.course_recommendation.recommendation.RecommendationService;
 import com.hcmus.course_recommendation.recommendation.fs.dto.FSRecommendationRequest;
 import com.hcmus.course_recommendation.recommendation.fs.dto.FSRefinedRecommendationRequest;
@@ -40,9 +38,9 @@ public class FSController {
 	}
 
 	@GetMapping("/fs/latest-recommendation")
-	public RestResponse<ServerFSRecommendationResult> getLatestRecommendationResult(@RequestParam Dataset dataset,
+	public RestResponse<ServerFSRecommendationResult> getLatestRecommendationResult(
 		Principal principal) {
-		return RestResponse.make(fsService.getLatestFsRecommendationResult(dataset, principal.getName()));
+		return RestResponse.make(fsService.getLatestFsRecommendationResult(principal.getName()));
 	}
 
 	@PostMapping("/fs/update-item-sentiments")
@@ -53,8 +51,8 @@ public class FSController {
 	}
 
 	@PutMapping("/fs/update-sentiments")
-	public RestResponse<Void> updateCoursesSentiments(@RequestParam Dataset dataset) {
-		fsService.updateCoursesSentiments(dataset);
+	public RestResponse<Void> updateCoursesSentiments() {
+		fsService.updateCoursesSentiments();
 		return RestResponse.make();
 	}
 }
