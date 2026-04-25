@@ -31,13 +31,5 @@ jobs:
               -n ca-${{ env.PROJECT_NAME }} \
               -g rg-${{ env.PROJECT_NAME }} \
               --image acr${{ env.PROJECT_NAME }}.azurecr.io/${{ env.APP_NAME }}:latest \
-              --replace-env-vars \
+              --set-env-vars \
                 TIMESTAMP=$(date +%s) \
-                MYSQL_DATABASE_NAME=secretref:mysql-database-name \
-                MYSQL_URL=secretref:mysql-url \
-                MYSQL_USERNAME=secretref:mysql-username \
-                MYSQL_ROOT_PASSWORD=secretref:mysql-root-password \
-                MYSQL_PORT=3306 \
-                JWT_EXPIRATION=99999999999 \
-                FRONTEND_URL=https://www.courserecom.site \
-                AI_URL=https://ai.courserecom.site
