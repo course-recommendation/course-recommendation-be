@@ -166,29 +166,40 @@ public class CourseService {
 	}
 
 	@Transactional(readOnly = true)
-	public Map<String, List<FSItemSentiment>> getFsItemIdToItemSentiments(String userId,
+	public List<String> getFilteredCourseCodes(Algorithm algorithm, String userId,
 		List<FilterCoursesOption> filterCoursesOptions, List<String> customFilteredCourseCodes) {
+		var normalizedFilterCoursesOptions = Optional.ofNullable(filterCoursesOptions).orElse(List.of());
+		var normalizedCustomFilteredCourseCodes = Optional.ofNullable(customFilteredCourseCodes).orElse(List.of());
+
 		var planningCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithm(userId,
-			UserCourseStatusEnum.PLANNED, Algorithm.FS).stream().map(UserCourseStatus::getCourseId).toList();
+			UserCourseStatusEnum.PLANNED, algorithm).stream().map(UserCourseStatus::getCourseId).toList();
 		var completedCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithm(userId,
-			UserCourseStatusEnum.COMPLETED, Algorithm.FS).stream().map(UserCourseStatus::getCourseId).toList();
-		var customFilteredCourseIds = courseRepository.findByAlgorithmAndCodeIn(Algorithm.FS,
-			customFilteredCourseCodes).stream().map(Course::getId).toList();
+			UserCourseStatusEnum.COMPLETED, algorithm).stream().map(UserCourseStatus::getCourseId).toList();
+		var customFilteredCourseIds = courseRepository.findByAlgorithmAndCodeIn(algorithm,
+			normalizedCustomFilteredCourseCodes).stream().map(Course::getId).toList();
 
 		var finalFilteredCourseIds = new ArrayList<Long>();
-		if (filterCoursesOptions.contains(FilterCoursesOption.PLANNING)) {
+		if (normalizedFilterCoursesOptions.contains(FilterCoursesOption.PLANNING)) {
 			finalFilteredCourseIds.addAll(planningCourseIds);
 		}
-		if (filterCoursesOptions.contains(FilterCoursesOption.COMPLETED)) {
+		if (normalizedFilterCoursesOptions.contains(FilterCoursesOption.COMPLETED)) {
 			finalFilteredCourseIds.addAll(completedCourseIds);
 		}
-		if (filterCoursesOptions.contains(FilterCoursesOption.CUSTOM)) {
+		if (normalizedFilterCoursesOptions.contains(FilterCoursesOption.CUSTOM)) {
 			finalFilteredCourseIds.addAll(customFilteredCourseIds);
 		}
 
+		return courseRepository.findByIdIn(finalFilteredCourseIds).stream().map(Course::getCode).toList();
+	}
+
+	@Transactional(readOnly = true)
+	public Map<String, List<FSItemSentiment>> getFsItemIdToItemSentiments(String userId,
+		List<FilterCoursesOption> filterCoursesOptions, List<String> customFilteredCourseCodes) {
+		var filteredCourseCodes = getFilteredCourseCodes(Algorithm.FS, userId, filterCoursesOptions,
+			customFilteredCourseCodes);
 		return courseRepository.findByAlgorithm(Algorithm.FS)
 			.stream()
-			.filter(course -> !finalFilteredCourseIds.contains(course.getId()))
+			.filter(course -> !filteredCourseCodes.contains(course.getCode()))
 			.collect(
 				Collectors.toMap(Course::getCode,
 					course -> ((FsCourseExtraData)course.getExtraData()).itemSentiments()));
@@ -211,5 +222,10 @@ public class CourseService {
 				.score(score)
 				.build());
 		}
+	}
+
+	@Transactional(readOnly = true)
+	public long countByAlgorithm(Algorithm algorithm) {
+		return courseRepository.countByAlgorithm(algorithm);
 	}
 }

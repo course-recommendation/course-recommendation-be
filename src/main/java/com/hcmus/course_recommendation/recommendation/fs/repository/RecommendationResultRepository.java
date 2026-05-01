@@ -17,6 +17,9 @@ public interface RecommendationResultRepository extends JpaRepository<Recommenda
 		ORDER BY r.id DESC
 		LIMIT 1
 		""")
-	Optional<RecommendationResult> getLatestFSRecommendationResult(Algorithm algorithm,
-		String userId);
+	Optional<RecommendationResult> getLatestRecommendationResult(Algorithm algorithm, String userId);
+
+	default Optional<RecommendationResult> getLatestFSRecommendationResult(Algorithm algorithm, String userId) {
+		return getLatestRecommendationResult(algorithm, userId);
+	}
 }

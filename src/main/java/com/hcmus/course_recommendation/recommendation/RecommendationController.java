@@ -24,7 +24,7 @@ public class RecommendationController {
 	}
 
 	@GetMapping("/user-preference")
-	public RestResponse<Map<String, Double>> getAttributeToTargetSentimentScore(
+	public RestResponse<Map<String, Double>> getAttributeValueToScore(
 		@RequestParam Algorithm algorithm,
 		Principal principal) {
 		return RestResponse.make(

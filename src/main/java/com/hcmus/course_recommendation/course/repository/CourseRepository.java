@@ -14,6 +14,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
 	List<Course> findByAlgorithmAndCodeIn(Algorithm algorithm,
 		List<String> courseCodes);
-	
+
 	List<Course> findByIdIn(List<Long> ids);
+
+	long countByAlgorithm(Algorithm algorithm);
 }

@@ -12,6 +12,7 @@ import com.hcmus.course_recommendation.course.model.Algorithm;
 )
 @JsonSubTypes({
 	@JsonSubTypes.Type(value = FsRecommendationResultData.class, name = "FS"),
+	@JsonSubTypes.Type(value = com.hcmus.course_recommendation.recommendation.tri_rank.model.TriRankRecommendationResultData.class, name = "TRI_RANK"),
 })
 public interface RecommendationResultData {
 
