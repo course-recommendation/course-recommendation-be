@@ -125,7 +125,51 @@ public class TriRankRecommendationService {
 	}
 
 	private List<TriRankItemAspect> getItemAspectsByCourseCode(String courseCode) {
-		return toTriRankItemAspects(triRankClient.getTopKAspectOfItem(courseCode, PAGE_SIZE_FOR_ALL_ITEMS));
+		return scaleItemAspects(toTriRankItemAspects(triRankClient.getTopKAspectOfItem(courseCode,
+			PAGE_SIZE_FOR_ALL_ITEMS)));
+	}
+
+	private List<TriRankItemAspect> scaleItemAspects(List<TriRankItemAspect> itemAspects) {
+		if (itemAspects == null || itemAspects.isEmpty()) {
+			return List.of();
+		}
+
+		var minScore = itemAspects.stream()
+			.map(TriRankItemAspect::score)
+			.filter(Objects::nonNull)
+			.mapToDouble(Double::doubleValue)
+			.min()
+			.orElse(0.0);
+		var maxScore = itemAspects.stream()
+			.map(TriRankItemAspect::score)
+			.filter(Objects::nonNull)
+			.mapToDouble(Double::doubleValue)
+			.max()
+			.orElse(0.0);
+
+		if (Double.compare(minScore, maxScore) == 0) {
+			return itemAspects.stream()
+				.map(itemAspect -> TriRankItemAspect.builder()
+					.aspect(itemAspect.aspect())
+					.score(5.0)
+					.build())
+				.toList();
+		}
+
+		return itemAspects.stream()
+			.map(itemAspect -> {
+				var score = itemAspect.score();
+				if (score == null) {
+					return itemAspect;
+				}
+				var scaledScore = 1.0 + ((score - minScore) * 4.0 / (maxScore - minScore));
+				scaledScore = Math.max(1.0, Math.min(5.0, scaledScore));
+				return TriRankItemAspect.builder()
+					.aspect(itemAspect.aspect())
+					.score(scaledScore)
+					.build();
+			})
+			.toList();
 	}
 
 	private List<TriRankItemAspect> toTriRankItemAspects(List<List<Object>> source) {
