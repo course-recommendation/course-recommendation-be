@@ -35,15 +35,16 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	public boolean isFirstLogin(String userId, Algorithm algorithm) {
-		return userFirstLoginRepository.findByUserIdAndAlgorithm(userId, algorithm).isEmpty();
+	public boolean isFirstLogin(String userId, Algorithm algorithm, Long tenantId) {
+		return userFirstLoginRepository.findByUserIdAndAlgorithmAndTenantId(userId, algorithm, tenantId).isEmpty();
 	}
 
 	@Transactional
-	public void doneFirstLogin(String userId, Algorithm algorithm) {
+	public void doneFirstLogin(String userId, Algorithm algorithm, Long tenantId) {
 		userFirstLoginRepository.save(UserFirstLogin.builder()
 			.userId(userId)
 			.algorithm(algorithm)
+			.tenantId(tenantId)
 			.build());
 	}
 }

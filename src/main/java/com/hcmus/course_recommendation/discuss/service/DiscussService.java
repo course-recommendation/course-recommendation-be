@@ -38,6 +38,8 @@ public class DiscussService {
 			.content(request.getContent())
 			.userId(request.getUserId())
 			.courseCode(request.getCourseCode())
+			.algorithm(request.getAlgorithm())
+			.tenantId(request.getTenantId())
 			.build());
 	}
 
@@ -45,27 +47,27 @@ public class DiscussService {
 	public List<PostDetail> findPostDetails(FindPostDetailsRequest request, Sort sort) {
 		List<Course> courses;
 		if (request.getCourseIdsRequest().isFetchAll()) {
-			courses = courseRepository.findByAlgorithm(request.getAlgorithm());
+			courses = courseRepository.findByAlgorithmAndTenantId(request.getAlgorithm(), request.getTenantId());
 		} else {
-			courses = courseRepository.findByAlgorithmAndCodeIn(request.getAlgorithm(),
-				request.getCourseIdsRequest().getData());
+			courses = courseRepository.findByAlgorithmAndTenantIdAndCodeIn(request.getAlgorithm(),
+				request.getTenantId(), request.getCourseIdsRequest().getData());
 		}
 
 		var courseIds = courses.stream().map(Course::getCode).toList();
 
-		var posts = postRepository.findByAlgorithmAndCourseCodeIn(request.getAlgorithm(),
-			courseIds, sort);
+		var posts = postRepository.findByAlgorithmAndTenantIdAndCourseCodeIn(request.getAlgorithm(),
+			request.getTenantId(), courseIds, sort);
 
-		return toPostDetails(request.getAlgorithm(), posts);
+		return toPostDetails(request.getAlgorithm(), request.getTenantId(), posts);
 	}
 
 	@Transactional(readOnly = true)
-	public List<PostDetail> toPostDetails(Algorithm algorithm, List<Post> posts) {
+	public List<PostDetail> toPostDetails(Algorithm algorithm, Long tenantId, List<Post> posts) {
 		var userIds = posts.stream().map(Post::getUserId).toList();
 		var userIdToUser = userService.getUserIdToUserMapByUserIds(userIds);
 
 		var courseIds = posts.stream().map(Post::getCourseCode).toList();
-		var courseIdToCourse = courseService.getCourseIdToCourseMapByCourseIds(algorithm, courseIds);
+		var courseIdToCourse = courseService.getCourseIdToCourseMapByCourseIds(algorithm, tenantId, courseIds);
 
 		return posts.stream()
 			.map(post -> PostDetail.builder()

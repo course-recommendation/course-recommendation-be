@@ -34,6 +34,7 @@ public class User {
 	private String firstName;
 	private String lastName;
 	private String avatarUrl;
+	private Long tenantId;
 	@JsonIgnore
 	@JdbcTypeCode(SqlTypes.JSON)
 	private List<Role> roles;

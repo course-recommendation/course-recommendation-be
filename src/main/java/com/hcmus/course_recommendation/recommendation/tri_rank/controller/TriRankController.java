@@ -11,6 +11,7 @@ import com.hcmus.course_recommendation.common.RestResponse;
 import com.hcmus.course_recommendation.recommendation.tri_rank.dto.ServerTriRankRecommendationResult;
 import com.hcmus.course_recommendation.recommendation.tri_rank.dto.TriRankRecommendationRequest;
 import com.hcmus.course_recommendation.recommendation.tri_rank.service.TriRankRecommendationService;
+import com.hcmus.course_recommendation.tenant.TenantId;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,15 +22,16 @@ public class TriRankController {
 
 	@PostMapping("/tri-rank/recommendation")
 	public RestResponse<ServerTriRankRecommendationResult> getRecommendation(
-		@RequestBody TriRankRecommendationRequest request, Principal principal) {
+		@RequestBody TriRankRecommendationRequest request, Principal principal, @TenantId Long tenantId) {
 		request.setUserId(principal.getName());
+		request.setTenantId(tenantId);
 		return RestResponse.make(triRankRecommendationService.getTriRankRecommendation(request));
 	}
 
 	@GetMapping("/tri-rank/latest-recommendation")
-	public RestResponse<ServerTriRankRecommendationResult> getLatestRecommendationResult(Principal principal) {
+	public RestResponse<ServerTriRankRecommendationResult> getLatestRecommendationResult(Principal principal,
+		@TenantId Long tenantId) {
 		return RestResponse.make(
-			triRankRecommendationService.getLatestTriRankRecommendationResult(principal.getName()));
+			triRankRecommendationService.getLatestTriRankRecommendationResult(principal.getName(), tenantId));
 	}
 }
-

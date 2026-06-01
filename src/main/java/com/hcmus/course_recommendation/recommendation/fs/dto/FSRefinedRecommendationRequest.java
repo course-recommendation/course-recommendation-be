@@ -20,4 +20,6 @@ public class FSRefinedRecommendationRequest {
 	private List<ClientFSTradeoffPair> category;
 	@JsonIgnore
 	private String userId;
+	@JsonIgnore
+	private Long tenantId;
 }

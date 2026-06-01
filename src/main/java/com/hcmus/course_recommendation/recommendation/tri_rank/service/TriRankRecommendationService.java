@@ -37,11 +37,10 @@ public class TriRankRecommendationService {
 
 	private ServerTriRankRecommendationResult toServerTriRankRecommendationResult(Long id,
 		TriRankRecommendationResultData recommendationResult, Map<String, List<TriRankItemAspect>> itemIdToItemAspects,
-		String userId) {
+		String userId, Long tenantId) {
 		var courseCodes = recommendationResult.courseCodes();
 		var courseIdToCourseDetail = courseService.getCourseIdToCourseDetailsByCourseIds(Algorithm.TRI_RANK,
-			courseCodes,
-			userId);
+			tenantId, courseCodes, userId);
 
 		var courseDetails = courseCodes.stream()
 			.map(courseIdToCourseDetail::get)
@@ -59,17 +58,17 @@ public class TriRankRecommendationService {
 
 	@Transactional
 	public ServerTriRankRecommendationResult getTriRankRecommendation(TriRankRecommendationRequest request) {
-		var oldUserPreferenceId = userPreferenceRepository.findByAlgorithmAndUserId(Algorithm.TRI_RANK,
-			request.getUserId()).map(UserPreference::getId).orElse(null);
+		var oldUserPreferenceId = userPreferenceRepository.findByAlgorithmAndTenantIdAndUserId(Algorithm.TRI_RANK,
+			request.getTenantId(), request.getUserId()).map(UserPreference::getId).orElse(null);
 		var newUserPreferenceData = UserPreferenceData.builder()
 			.attributeToScore(request.getAttributeToScore())
 			.build();
-		userPreferenceRepository.save(new UserPreference(oldUserPreferenceId, Algorithm.TRI_RANK, request.getUserId(),
-			newUserPreferenceData));
+		userPreferenceRepository.save(new UserPreference(oldUserPreferenceId, Algorithm.TRI_RANK, request.getTenantId(),
+			request.getUserId(), newUserPreferenceData));
 
 		var clientRequest = ClientTriRankRecommendationRequest.builder()
 			.uid(request.getUserId())
-			.k(courseService.countByAlgorithm(Algorithm.TRI_RANK))
+			.k(courseService.countByAlgorithm(Algorithm.TRI_RANK, request.getTenantId()))
 			.preferences(request.getAttributeToScore()
 				.entrySet()
 				.stream()
@@ -80,7 +79,7 @@ public class TriRankRecommendationService {
 			.build();
 
 		var response = triRankClient.getRecommendation(clientRequest);
-		var filteredCourseCodes = courseService.getFilteredCourseCodes(Algorithm.TRI_RANK,
+		var filteredCourseCodes = courseService.getFilteredCourseCodes(Algorithm.TRI_RANK, request.getTenantId(),
 			request.getUserId(), request.getFilterCoursesOptions(), request.getCustomFilteredCourseCodes());
 		var recommendationCourseCodes = (response.recommendations() == null ? List.<String>of() :
 			response.recommendations())
@@ -98,22 +97,22 @@ public class TriRankRecommendationService {
 			.build();
 
 		var savedRecommendationResult = recommendationResultRepository.save(
-			new RecommendationResult(null, Algorithm.TRI_RANK, request.getUserId(), data));
+			new RecommendationResult(null, Algorithm.TRI_RANK, request.getTenantId(), request.getUserId(), data));
 
 		return toServerTriRankRecommendationResult(savedRecommendationResult.getId(), data, itemIdToItemAspects,
-			request.getUserId());
+			request.getUserId(), request.getTenantId());
 	}
 
 	@Transactional(readOnly = true)
-	public ServerTriRankRecommendationResult getLatestTriRankRecommendationResult(String userId) {
+	public ServerTriRankRecommendationResult getLatestTriRankRecommendationResult(String userId, Long tenantId) {
 		var latestRecommendationResult = recommendationResultRepository.getLatestRecommendationResult(
 			Algorithm.TRI_RANK,
-			userId);
+			tenantId, userId);
 		return latestRecommendationResult.map(recommendationResult -> {
 			var recommendationResultData = (TriRankRecommendationResultData)recommendationResult.getData();
 			var itemIdToItemAspects = getItemIdToItemAspects(recommendationResultData.courseCodes());
 			return toServerTriRankRecommendationResult(recommendationResult.getId(), recommendationResultData,
-				itemIdToItemAspects, userId);
+				itemIdToItemAspects, userId, tenantId);
 		}).orElse(null);
 	}
 
@@ -196,7 +195,6 @@ public class TriRankRecommendationService {
 			.toList();
 	}
 }
-
 
 
 

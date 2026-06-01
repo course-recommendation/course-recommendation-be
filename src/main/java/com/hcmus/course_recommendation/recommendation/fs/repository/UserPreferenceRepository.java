@@ -8,5 +8,5 @@ import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.recommendation.fs.model.UserPreference;
 
 public interface UserPreferenceRepository extends JpaRepository<UserPreference, Long> {
-	Optional<UserPreference> findByAlgorithmAndUserId(Algorithm algorithm, String userId);
+	Optional<UserPreference> findByAlgorithmAndTenantIdAndUserId(Algorithm algorithm, Long tenantId, String userId);
 }

@@ -18,6 +18,7 @@ import com.hcmus.course_recommendation.discuss.dto.FindPostDetailsRequest;
 import com.hcmus.course_recommendation.discuss.dto.PostCommentDetail;
 import com.hcmus.course_recommendation.discuss.dto.PostDetail;
 import com.hcmus.course_recommendation.discuss.service.DiscussService;
+import com.hcmus.course_recommendation.tenant.TenantId;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,21 +28,24 @@ public class DiscussController {
 	private final DiscussService discussService;
 
 	@PostMapping("/posts")
-	public RestResponse<Void> createPost(@RequestBody CreatePostRequest request, Principal principal) {
+	public RestResponse<Void> createPost(@RequestBody CreatePostRequest request, Principal principal,
+		@TenantId Long tenantId) {
 		request.setUserId(principal.getName());
+		request.setTenantId(tenantId);
 		discussService.createPost(request);
 		return RestResponse.make();
 	}
 
 	@GetMapping("/posts")
 	public RestResponse<List<PostDetail>> findPostDetails(@ParameterObject FindPostDetailsRequest request,
-		@ParameterObject Sort sort) {
+		@ParameterObject Sort sort, @TenantId Long tenantId) {
+		request.setTenantId(tenantId);
 		return RestResponse.make(discussService.findPostDetails(request, sort));
 	}
 
 	@PostMapping("/posts/{postId}/comments")
 	public RestResponse<Void> createPostComment(@RequestBody CreatePostCommentRequest request, Principal principal,
-		@PathVariable Long postId) {
+		@PathVariable Long postId, @TenantId Long tenantId) {
 		request.setUserId(principal.getName());
 		request.setPostId(postId);
 		discussService.createPostComment(request);
@@ -50,7 +54,8 @@ public class DiscussController {
 	}
 
 	@GetMapping("/posts/{postId}/comments")
-	public RestResponse<List<PostCommentDetail>> findPostCommentsByPostId(@PathVariable Long postId) {
+	public RestResponse<List<PostCommentDetail>> findPostCommentsByPostId(@PathVariable Long postId,
+		@TenantId Long tenantId) {
 		return RestResponse.make(discussService.findPostCommentsByPostId(postId));
 	}
 }

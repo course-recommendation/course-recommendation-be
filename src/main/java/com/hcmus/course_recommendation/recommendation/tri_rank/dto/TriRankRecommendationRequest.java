@@ -24,6 +24,7 @@ public class TriRankRecommendationRequest {
 	private List<String> customFilteredCourseCodes;
 	@JsonIgnore
 	private String userId;
+	@JsonIgnore
+	private Long tenantId;
 }
-
 

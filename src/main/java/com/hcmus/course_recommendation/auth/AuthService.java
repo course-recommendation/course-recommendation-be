@@ -8,10 +8,12 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.hcmus.course_recommendation.auth.config.JwtService;
 import com.hcmus.course_recommendation.auth.dto.LoginRequest;
 import com.hcmus.course_recommendation.auth.dto.LoginResponse;
+import com.hcmus.course_recommendation.auth.dto.RegisterAdminRequest;
 import com.hcmus.course_recommendation.auth.dto.RegisterRequest;
 import com.hcmus.course_recommendation.auth.mapper.AuthMapper;
 import com.hcmus.course_recommendation.common.exception.BadRequestException;
@@ -33,9 +35,10 @@ public class AuthService {
 	private final JwtService jwtService;
 	private final AuthMapper authMapper;
 
-	public void register(RegisterRequest request) {
-
+	@Transactional
+	public void register(RegisterRequest request, Long tenantId) {
 		var user = authMapper.toUser(request).toBuilder()
+			.tenantId(tenantId)
 			.roles(List.of(Role.USER))
 			.password(passwordEncoder.encode(request.getPassword()))
 			.build();
@@ -52,8 +55,30 @@ public class AuthService {
 		}
 	}
 
-	public LoginResponse login(LoginRequest request) {
-		User user = userRepository.findByEmail(request.getEmail())
+	@Transactional
+	public void registerAdmin(RegisterAdminRequest request) {
+
+		var user = User.builder()
+			.email(request.getEmail())
+			.password(passwordEncoder.encode(request.getPassword()))
+			.roles(List.of(Role.ADMIN))
+			.tenantId(request.getTenantId())
+			.build();
+
+		try {
+			var savedUser = userRepository.save(user);
+
+			// Save dummy avatar
+			userRepository.save(savedUser.toBuilder()
+				.avatarUrl(String.format("https://picsum.photos/seed/%s/1600/900", savedUser.getId()))
+				.build());
+		} catch (DataIntegrityViolationException exception) {
+			throw new BadRequestException(GlobalErrorCode.EMAIL_DUPLICATED);
+		}
+	}
+
+	public LoginResponse login(LoginRequest request, Long tenantId) {
+		User user = userRepository.findByEmailAndTenantId(request.getEmail(), tenantId)
 			.orElseThrow(() -> new BadRequestException(GlobalErrorCode.EMAIL_NOT_FOUND));
 
 		try {

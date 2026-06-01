@@ -29,6 +29,8 @@ import com.hcmus.course_recommendation.course.model.UserCourseStatusEnum;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseStatusRepository;
+import com.hcmus.course_recommendation.common.exception.GlobalErrorCode;
+import com.hcmus.course_recommendation.common.exception.NotFoundException;
 import com.hcmus.course_recommendation.recommendation.model.FilterCoursesOption;
 
 import lombok.RequiredArgsConstructor;
@@ -42,11 +44,11 @@ public class CourseService {
 
 	@Transactional
 	public void updateUserCourseStatuses(UpdateUserCourseStatusesRequest request) {
-		var userCourseStatusesWithIdsAndNotRequestStatus = userCourseStatusRepository.findByUserIdAndAlgorithmAndNotStatusAndCourseIdIn(
-			request.getUserId(), request.getAlgorithm(), request.getUserCourseStatus(), request.getCourseIds());
-		var userCourseStatusesWithRequestStatus = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithm(
-			request.getUserId(),
-			request.getUserCourseStatus(), request.getAlgorithm());
+		var userCourseStatusesWithIdsAndNotRequestStatus = userCourseStatusRepository.findByUserIdAndAlgorithmAndTenantIdAndNotStatusAndCourseIdIn(
+			request.getUserId(), request.getAlgorithm(), request.getTenantId(), request.getUserCourseStatus(),
+			request.getCourseIds());
+		var userCourseStatusesWithRequestStatus = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithmAndTenantId(
+			request.getUserId(), request.getUserCourseStatus(), request.getAlgorithm(), request.getTenantId());
 		var deletingUserCourseIds = Stream.concat(userCourseStatusesWithIdsAndNotRequestStatus.stream(),
 			userCourseStatusesWithRequestStatus.stream()).map(UserCourseStatus::getId).toList();
 
@@ -64,6 +66,10 @@ public class CourseService {
 
 	@Transactional
 	public void updateUserCourseStatus(UpdateUserCourseStatusRequest request) {
+		if (!courseRepository.existsByIdAndTenantId(request.getCourseId(), request.getTenantId())) {
+			throw new NotFoundException(GlobalErrorCode.NOT_FOUND, request.getCourseId());
+		}
+
 		var oldUserCourseStatusOpt = userCourseStatusRepository.findByUserIdAndCourseIdAndStatus(request.getUserId(),
 			request.getCourseId(), request.getStatus());
 
@@ -84,26 +90,27 @@ public class CourseService {
 
 	@Transactional(readOnly = true)
 	public List<CourseDetail> getCoursesOfUser(GetCoursesOfUserRequest request) {
-		var userCourses = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithm(request.getUserId(),
-			request.getUserCourseStatus(), request.getAlgorithm());
+		var userCourses = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithmAndTenantId(request.getUserId(),
+			request.getUserCourseStatus(), request.getAlgorithm(), request.getTenantId());
 		var courseCodes = courseRepository.findByIdIn(userCourses.stream().map(UserCourseStatus::getCourseId).toList())
 			.stream()
 			.map(Course::getCode)
 			.toList();
 
-		return toCourseDetails(request.getAlgorithm(), courseCodes, request.getUserId());
+		return toCourseDetails(request.getAlgorithm(), request.getTenantId(), courseCodes, request.getUserId());
 	}
 
 	@Transactional(readOnly = true)
-	public Map<String, CourseDetail> getCourseIdToCourseDetailsByCourseIds(Algorithm algorithm, List<String> courseIds,
-		String userId) {
-		return toCourseDetails(algorithm, courseIds, userId).stream()
+	public Map<String, CourseDetail> getCourseIdToCourseDetailsByCourseIds(Algorithm algorithm, Long tenantId,
+		List<String> courseIds, String userId) {
+		return toCourseDetails(algorithm, tenantId, courseIds, userId).stream()
 			.collect(Collectors.toMap(courseDetail -> courseDetail.course().getCode(), Function.identity()));
 	}
 
 	@Transactional(readOnly = true)
-	public List<CourseDetail> toCourseDetails(Algorithm algorithm, List<String> courseCodes, String userId) {
-		var courses = courseRepository.findByAlgorithmAndCodeIn(algorithm, courseCodes);
+	public List<CourseDetail> toCourseDetails(Algorithm algorithm, Long tenantId, List<String> courseCodes,
+		String userId) {
+		var courses = courseRepository.findByAlgorithmAndTenantIdAndCodeIn(algorithm, tenantId, courseCodes);
 
 		var userCourseStatuses = userCourseStatusRepository.findByUserId(userId);
 		var courseIdToUserCourseStatus = userCourseStatuses.stream()
@@ -131,15 +138,16 @@ public class CourseService {
 		if (request.getName() == null) {
 			request.setName("");
 		}
-		return toCourseDetails(request.getAlgorithm(),
-			courseRepository.findByAlgorithmAndNameLike(request.getAlgorithm(),
+		return toCourseDetails(request.getAlgorithm(), request.getTenantId(),
+			courseRepository.findByAlgorithmAndTenantIdAndNameLike(request.getAlgorithm(), request.getTenantId(),
 				String.format("%%%s%%", request.getName())).stream().map(Course::getCode).toList(),
 			request.getUserId());
 	}
 
 	@Transactional(readOnly = true)
 	public CourseDetail getCourseDetail(GetCourseDetailRequest request) {
-		var courseDetails = toCourseDetails(request.getAlgorithm(), List.of(request.getCourseCode()),
+		var courseDetails = toCourseDetails(request.getAlgorithm(), request.getTenantId(),
+			List.of(request.getCourseCode()),
 			request.getUserId());
 		try {
 			return courseDetails.getFirst();
@@ -150,32 +158,32 @@ public class CourseService {
 
 	@Transactional(readOnly = true)
 	public List<Course> getCourses(GetCoursesRequest request) {
-		return courseRepository.findByAlgorithm(request.getAlgorithm());
+		return courseRepository.findByAlgorithmAndTenantId(request.getAlgorithm(), request.getTenantId());
 	}
 
 	@Transactional(readOnly = true)
-	public List<Course> findCoursesByIds(Algorithm algorithm, List<String> courseIds) {
-		return courseRepository.findByAlgorithmAndCodeIn(algorithm,
-			courseIds);
+	public List<Course> findCoursesByIds(Algorithm algorithm, Long tenantId, List<String> courseIds) {
+		return courseRepository.findByAlgorithmAndTenantIdAndCodeIn(algorithm, tenantId, courseIds);
 	}
 
 	@Transactional(readOnly = true)
-	public Map<String, Course> getCourseIdToCourseMapByCourseIds(Algorithm algorithm, List<String> courseIds) {
-		return findCoursesByIds(algorithm, courseIds).stream()
+	public Map<String, Course> getCourseIdToCourseMapByCourseIds(Algorithm algorithm, Long tenantId,
+		List<String> courseIds) {
+		return findCoursesByIds(algorithm, tenantId, courseIds).stream()
 			.collect(Collectors.toMap(Course::getCode, Function.identity()));
 	}
 
 	@Transactional(readOnly = true)
-	public List<String> getFilteredCourseCodes(Algorithm algorithm, String userId,
+	public List<String> getFilteredCourseCodes(Algorithm algorithm, Long tenantId, String userId,
 		List<FilterCoursesOption> filterCoursesOptions, List<String> customFilteredCourseCodes) {
 		var normalizedFilterCoursesOptions = Optional.ofNullable(filterCoursesOptions).orElse(List.of());
 		var normalizedCustomFilteredCourseCodes = Optional.ofNullable(customFilteredCourseCodes).orElse(List.of());
 
-		var planningCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithm(userId,
-			UserCourseStatusEnum.PLANNED, algorithm).stream().map(UserCourseStatus::getCourseId).toList();
-		var completedCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithm(userId,
-			UserCourseStatusEnum.COMPLETED, algorithm).stream().map(UserCourseStatus::getCourseId).toList();
-		var customFilteredCourseIds = courseRepository.findByAlgorithmAndCodeIn(algorithm,
+		var planningCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithmAndTenantId(userId,
+			UserCourseStatusEnum.PLANNED, algorithm, tenantId).stream().map(UserCourseStatus::getCourseId).toList();
+		var completedCourseIds = userCourseStatusRepository.findByUserIdAndStatusAndAlgorithmAndTenantId(userId,
+			UserCourseStatusEnum.COMPLETED, algorithm, tenantId).stream().map(UserCourseStatus::getCourseId).toList();
+		var customFilteredCourseIds = courseRepository.findByAlgorithmAndTenantIdAndCodeIn(algorithm, tenantId,
 			normalizedCustomFilteredCourseCodes).stream().map(Course::getId).toList();
 
 		var finalFilteredCourseIds = new ArrayList<Long>();
@@ -194,10 +202,10 @@ public class CourseService {
 
 	@Transactional(readOnly = true)
 	public Map<String, List<FSItemSentiment>> getFsItemIdToItemSentiments(String userId,
-		List<FilterCoursesOption> filterCoursesOptions, List<String> customFilteredCourseCodes) {
-		var filteredCourseCodes = getFilteredCourseCodes(Algorithm.FS, userId, filterCoursesOptions,
+		Long tenantId, List<FilterCoursesOption> filterCoursesOptions, List<String> customFilteredCourseCodes) {
+		var filteredCourseCodes = getFilteredCourseCodes(Algorithm.FS, tenantId, userId, filterCoursesOptions,
 			customFilteredCourseCodes);
-		return courseRepository.findByAlgorithm(Algorithm.FS)
+		return courseRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId)
 			.stream()
 			.filter(course -> !filteredCourseCodes.contains(course.getCode()))
 			.collect(
@@ -206,7 +214,11 @@ public class CourseService {
 	}
 
 	@Transactional
-	public void rateCourse(String userId, Long courseId, String attributeValue, Integer score) {
+	public void rateCourse(String userId, Long tenantId, Long courseId, String attributeValue, Integer score) {
+		if (!courseRepository.existsByIdAndTenantId(courseId, tenantId)) {
+			throw new NotFoundException(GlobalErrorCode.NOT_FOUND, courseId);
+		}
+
 		var oldUserCourseRating = userCourseRatingRepository.findByUserIdAndCourseIdAndAttributeValue(userId, courseId,
 			attributeValue);
 
@@ -225,7 +237,7 @@ public class CourseService {
 	}
 
 	@Transactional(readOnly = true)
-	public long countByAlgorithm(Algorithm algorithm) {
-		return courseRepository.countByAlgorithm(algorithm);
+	public long countByAlgorithm(Algorithm algorithm, Long tenantId) {
+		return courseRepository.countByAlgorithmAndTenantId(algorithm, tenantId);
 	}
 }

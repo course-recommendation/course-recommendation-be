@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.hcmus.course_recommendation.course.model.Algorithm;
 
 public interface UserFirstLoginRepository extends JpaRepository<UserFirstLogin, Long> {
-	Optional<UserFirstLogin> findByUserIdAndAlgorithm(String userId, Algorithm algorithm);
+	Optional<UserFirstLogin> findByUserIdAndAlgorithmAndTenantId(String userId, Algorithm algorithm, Long tenantId);
 }

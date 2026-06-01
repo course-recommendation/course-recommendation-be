@@ -8,14 +8,18 @@ import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.course.model.Course;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
-	List<Course> findByAlgorithm(Algorithm algorithm);
+	List<Course> findByAlgorithmAndTenantId(Algorithm algorithm, Long tenantId);
 
-	List<Course> findByAlgorithmAndNameLike(Algorithm algorithm, String name);
+	List<Course> findByAlgorithmAndTenantIdAndNameLike(Algorithm algorithm, Long tenantId, String name);
 
-	List<Course> findByAlgorithmAndCodeIn(Algorithm algorithm,
+	List<Course> findByAlgorithmAndTenantIdAndCodeIn(Algorithm algorithm, Long tenantId,
 		List<String> courseCodes);
 
 	List<Course> findByIdIn(List<Long> ids);
 
-	long countByAlgorithm(Algorithm algorithm);
+	long countByAlgorithmAndTenantId(Algorithm algorithm, Long tenantId);
+
+	long countByTenantId(Long tenantId);
+
+	boolean existsByIdAndTenantId(Long id, Long tenantId);
 }
