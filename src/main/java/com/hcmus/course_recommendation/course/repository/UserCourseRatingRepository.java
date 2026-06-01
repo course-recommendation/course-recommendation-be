@@ -21,6 +21,7 @@ public interface UserCourseRatingRepository extends JpaRepository<UserCourseRati
 		FROM UserCourseRating ucr
 		JOIN Course c ON ucr.courseId = c.id
 		WHERE c.algorithm = :algorithm
+		AND c.tenantId = :tenantId
 		""")
-	List<UserCourseRating> findByAlgorithmAndDataset(Algorithm algorithm);
+	List<UserCourseRating> findByAlgorithmAndTenantId(Algorithm algorithm, Long tenantId);
 }

@@ -22,9 +22,10 @@ public interface UserCourseStatusRepository extends JpaRepository<UserCourseStat
 		AND ucs.userId = :userId
 		AND ucs.status = :status
 		AND c.algorithm = :algorithm
+		AND c.tenantId = :tenantId
 		""")
-	List<UserCourseStatus> findByUserIdAndStatusAndAlgorithm(String userId, UserCourseStatusEnum status,
-		Algorithm algorithm);
+	List<UserCourseStatus> findByUserIdAndStatusAndAlgorithmAndTenantId(String userId, UserCourseStatusEnum status,
+		Algorithm algorithm, Long tenantId);
 
 	Optional<UserCourseStatus> findByUserIdAndCourseIdAndStatus(String userId, Long courseId,
 		UserCourseStatusEnum status);
@@ -37,11 +38,12 @@ public interface UserCourseStatusRepository extends JpaRepository<UserCourseStat
 		WHERE TRUE
 		AND ucs.userId = :userId
 		AND c.algorithm = :algorithm
+		AND c.tenantId = :tenantId
 		AND ucs.status <> :status
 		AND ucs.courseId IN (:courseIds)
 		""")
-	List<UserCourseStatus> findByUserIdAndAlgorithmAndNotStatusAndCourseIdIn(String userId, Algorithm algorithm,
-		UserCourseStatusEnum status, List<Long> courseIds);
+	List<UserCourseStatus> findByUserIdAndAlgorithmAndTenantIdAndNotStatusAndCourseIdIn(String userId,
+		Algorithm algorithm, Long tenantId, UserCourseStatusEnum status, List<Long> courseIds);
 
 	List<UserCourseStatus> findByUserId(String userId);
 

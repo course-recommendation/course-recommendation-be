@@ -1,5 +1,6 @@
 package com.hcmus.course_recommendation.auth.config;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.context.annotation.Bean;
@@ -15,7 +16,11 @@ public class CorsConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource(DomainProperties domainProperties) {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(List.of(domainProperties.frontendUrl()));
+		var allowedOrigins = Arrays.stream(domainProperties.frontendUrl().split(","))
+			.map(String::trim)
+			.filter(origin -> !origin.isBlank())
+			.toList();
+		configuration.setAllowedOriginPatterns(allowedOrigins);
 		configuration.setAllowedHeaders(List.of("*"));
 		configuration.setAllowedMethods(List.of("*"));
 		configuration.setAllowCredentials(true);

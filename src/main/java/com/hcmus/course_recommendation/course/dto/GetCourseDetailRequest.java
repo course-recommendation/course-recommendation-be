@@ -22,4 +22,7 @@ public class GetCourseDetailRequest {
 
 	@JsonIgnore
 	private String userId;
+
+	@JsonIgnore
+	private Long tenantId;
 }

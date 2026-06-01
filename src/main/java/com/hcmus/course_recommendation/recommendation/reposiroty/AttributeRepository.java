@@ -8,5 +8,5 @@ import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.recommendation.model.Attribute;
 
 public interface AttributeRepository extends JpaRepository<Attribute, Long> {
-	List<Attribute> findByAlgorithm(Algorithm algorithm);
+	List<Attribute> findByAlgorithmAndTenantId(Algorithm algorithm, Long tenantId);
 }

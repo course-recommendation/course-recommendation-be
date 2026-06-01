@@ -26,5 +26,6 @@ public class Attribute {
 	private Long id;
 	@Enumerated(EnumType.STRING)
 	private Algorithm algorithm;
+	private Long tenantId;
 	private String value;
 }

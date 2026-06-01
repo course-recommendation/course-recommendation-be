@@ -1,5 +1,6 @@
 package com.hcmus.course_recommendation.discuss.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hcmus.course_recommendation.common.util.ListRequest;
 import com.hcmus.course_recommendation.course.model.Algorithm;
 
@@ -17,4 +18,6 @@ import lombok.Setter;
 public class FindPostDetailsRequest {
 	private Algorithm algorithm;
 	private ListRequest<String> courseIdsRequest = ListRequest.defaultInstance();
+	@JsonIgnore
+	private Long tenantId;
 }

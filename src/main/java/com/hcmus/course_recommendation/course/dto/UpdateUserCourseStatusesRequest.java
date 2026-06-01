@@ -20,6 +20,8 @@ import lombok.Setter;
 public class UpdateUserCourseStatusesRequest {
 	@JsonIgnore
 	private String userId;
+	@JsonIgnore
+	private Long tenantId;
 	private UserCourseStatusEnum userCourseStatus;
 	private List<Long> courseIds;
 	private Algorithm algorithm;

@@ -29,6 +29,8 @@ public class RecommendationResult {
 	@Enumerated(EnumType.STRING)
 	private Algorithm algorithm;
 
+	private Long tenantId;
+
 	private String userId;
 
 	@JdbcTypeCode(SqlTypes.JSON)

@@ -34,6 +34,9 @@ public class Course {
 	@JsonIgnore
 	private Algorithm algorithm;
 
+	@JsonIgnore
+	private Long tenantId;
+
 	private String name;
 	private String description;
 	private String thumbnailUrl;

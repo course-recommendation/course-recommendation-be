@@ -14,6 +14,7 @@ import com.hcmus.course_recommendation.recommendation.fs.dto.FSRecommendationReq
 import com.hcmus.course_recommendation.recommendation.fs.dto.FSRefinedRecommendationRequest;
 import com.hcmus.course_recommendation.recommendation.fs.dto.ServerFSRecommendationResult;
 import com.hcmus.course_recommendation.recommendation.fs.service.FSService;
+import com.hcmus.course_recommendation.tenant.TenantId;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,34 +26,36 @@ public class FSController {
 
 	@PostMapping("/fs/recommendation")
 	public RestResponse<ServerFSRecommendationResult> getFeatureSentimentRecommendation(
-		@RequestBody FSRecommendationRequest request, Principal principal) {
+		@RequestBody FSRecommendationRequest request, Principal principal, @TenantId Long tenantId) {
 		request.setUserId(principal.getName());
+		request.setTenantId(tenantId);
 		return RestResponse.make(fsService.getFSRecommendation(request));
 	}
 
 	@PostMapping("/fs/recommendation/refined")
 	public RestResponse<ServerFSRecommendationResult> getFeatureSentimentRefinedRecommendation(
-		@RequestBody FSRefinedRecommendationRequest request, Principal principal) {
+		@RequestBody FSRefinedRecommendationRequest request, Principal principal, @TenantId Long tenantId) {
 		request.setUserId(principal.getName());
+		request.setTenantId(tenantId);
 		return RestResponse.make(fsService.getFsRefinedRecommendation(request));
 	}
 
 	@GetMapping("/fs/latest-recommendation")
 	public RestResponse<ServerFSRecommendationResult> getLatestRecommendationResult(
-		Principal principal) {
-		return RestResponse.make(fsService.getLatestFsRecommendationResult(principal.getName()));
+		Principal principal, @TenantId Long tenantId) {
+		return RestResponse.make(fsService.getLatestFsRecommendationResult(principal.getName(), tenantId));
 	}
 
 	@PostMapping("/fs/update-item-sentiments")
-	public RestResponse<Void> updateItemSentiments() {
-		fsService.updateItemSentiments();
+	public RestResponse<Void> updateItemSentiments(@TenantId Long tenantId) {
+		fsService.updateItemSentiments(tenantId);
 
 		return RestResponse.make();
 	}
 
 	@PutMapping("/fs/update-sentiments")
-	public RestResponse<Void> updateCoursesSentiments() {
-		fsService.updateCoursesSentiments();
+	public RestResponse<Void> updateCoursesSentiments(@TenantId Long tenantId) {
+		fsService.updateCoursesSentiments(tenantId);
 		return RestResponse.make();
 	}
 }

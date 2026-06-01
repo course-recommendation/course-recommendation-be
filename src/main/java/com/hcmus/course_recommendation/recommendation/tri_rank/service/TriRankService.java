@@ -44,11 +44,12 @@ public class TriRankService {
 	private final CourseRepository courseRepository;
 	private final UserCourseRatingRepository userCourseRatingRepository;
 
-	public void exportTriRankDatasetToAzure() {
-		var courseIdToCourseCode = courseRepository.findByAlgorithm(TRI_RANK_ALGORITHM).stream()
+	public void exportTriRankDatasetToAzure(Long tenantId) {
+		var courseIdToCourseCode = courseRepository.findByAlgorithmAndTenantId(TRI_RANK_ALGORITHM, tenantId).stream()
 			.collect(Collectors.toMap(Course::getId, Course::getCode));
 
-		var userCourseRatings = userCourseRatingRepository.findByAlgorithmAndDataset(TRI_RANK_ALGORITHM).stream()
+		var userCourseRatings = userCourseRatingRepository.findByAlgorithmAndTenantId(TRI_RANK_ALGORITHM, tenantId)
+			.stream()
 			.filter(rating -> courseIdToCourseCode.containsKey(rating.getCourseId()))
 			.toList();
 

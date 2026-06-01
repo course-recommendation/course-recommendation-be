@@ -9,6 +9,6 @@ import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.discuss.model.Post;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
-	List<Post> findByAlgorithmAndCourseCodeIn(Algorithm algorithm, List<String> courseIds,
-		Sort sort);
+	List<Post> findByAlgorithmAndTenantIdAndCourseCodeIn(Algorithm algorithm, Long tenantId,
+		List<String> courseIds, Sort sort);
 }

@@ -20,4 +20,6 @@ public class UpdateUserCourseStatusRequest {
 	private UserCourseStatusEnum status;
 	@JsonIgnore
 	private Long courseId;
+	@JsonIgnore
+	private Long tenantId;
 }

@@ -21,6 +21,7 @@ import com.hcmus.course_recommendation.course.dto.UpdateUserCourseStatusRequest;
 import com.hcmus.course_recommendation.course.dto.UpdateUserCourseStatusesRequest;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.service.CourseService;
+import com.hcmus.course_recommendation.tenant.TenantId;
 
 @RestController
 public class CourseController {
@@ -32,8 +33,9 @@ public class CourseController {
 
 	@PutMapping("/me/courses")
 	public RestResponse<Void> updateUserCourses(@RequestBody UpdateUserCourseStatusesRequest request,
-		Principal principal) {
+		Principal principal, @TenantId Long tenantId) {
 		request.setUserId(principal.getName());
+		request.setTenantId(tenantId);
 		courseService.updateUserCourseStatuses(request);
 
 		return RestResponse.make();
@@ -41,45 +43,54 @@ public class CourseController {
 
 	@PutMapping("/me/courses/{courseId}")
 	public RestResponse<Void> updateUserCourse(@RequestBody UpdateUserCourseStatusRequest request,
-		@PathVariable Long courseId, Principal principal) {
+		@PathVariable Long courseId, Principal principal, @TenantId Long tenantId) {
 		request.setUserId(principal.getName());
 		request.setCourseId(courseId);
+		request.setTenantId(tenantId);
 		courseService.updateUserCourseStatus(request);
 
 		return RestResponse.make();
 	}
 
 	@GetMapping("/me/courses")
-	public RestResponse<List<CourseDetail>> getCoursesOfUser(GetCoursesOfUserRequest request, Principal principal) {
+	public RestResponse<List<CourseDetail>> getCoursesOfUser(GetCoursesOfUserRequest request, Principal principal,
+		@TenantId Long tenantId) {
 		request.setUserId(principal.getName());
+		request.setTenantId(tenantId);
 		return RestResponse.make(courseService.getCoursesOfUser(request));
 	}
 
 	@GetMapping("/courses/detail")
-	public RestResponse<List<CourseDetail>> getCourseDetails(GetCourseDetailsRequest request, Principal principal) {
+	public RestResponse<List<CourseDetail>> getCourseDetails(GetCourseDetailsRequest request, Principal principal,
+		@TenantId Long tenantId) {
 		request.setUserId(principal.getName());
+		request.setTenantId(tenantId);
 
 		return RestResponse.make(courseService.getCourseDetails(request));
 	}
 
 	@GetMapping("/courses")
-	public RestResponse<List<Course>> getAllCourses(@ParameterObject GetCoursesRequest request) {
+	public RestResponse<List<Course>> getAllCourses(@ParameterObject GetCoursesRequest request,
+		@TenantId Long tenantId) {
+		request.setTenantId(tenantId);
 		return RestResponse.make(courseService.getCourses(request));
 	}
 
 	@GetMapping("/courses/{courseCode}/detail")
 	public RestResponse<CourseDetail> getCourseDetails(@PathVariable String courseCode,
-		@ParameterObject GetCourseDetailRequest request, Principal principal) {
+		@ParameterObject GetCourseDetailRequest request, Principal principal, @TenantId Long tenantId) {
 		request.setUserId(principal.getName());
 		request.setCourseCode(courseCode);
+		request.setTenantId(tenantId);
 
 		return RestResponse.make(courseService.getCourseDetail(request));
 	}
 
 	@PutMapping("/courses/{courseId}/rating")
-	public RestResponse<Void> rateCourse(@PathVariable Long courseId, Principal principal,
+	public RestResponse<Void> rateCourse(@PathVariable Long courseId, Principal principal, @TenantId Long tenantId,
 		@RequestBody RateCourseRequest request) {
-		courseService.rateCourse(principal.getName(), courseId, request.getAttributeValue(), request.getScore());
+		courseService.rateCourse(principal.getName(), tenantId, courseId, request.getAttributeValue(),
+			request.getScore());
 
 		return RestResponse.make();
 	}

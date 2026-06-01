@@ -20,4 +20,6 @@ public class GetCoursesOfUserRequest {
 	private UserCourseStatusEnum userCourseStatus;
 	@JsonIgnore
 	private String userId;
+	@JsonIgnore
+	private Long tenantId;
 }

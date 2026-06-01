@@ -20,16 +20,16 @@ public class RecommendationService {
 	private final UserPreferenceRepository fSUserPreferenceRepository;
 
 	@Transactional(readOnly = true)
-	public List<String> getAttributeValues(Algorithm algorithm) {
-		return attributeRepository.findByAlgorithm(algorithm)
+	public List<String> getAttributeValues(Algorithm algorithm, Long tenantId) {
+		return attributeRepository.findByAlgorithmAndTenantId(algorithm, tenantId)
 			.stream()
 			.map(Attribute::getValue)
 			.toList();
 	}
 
 	@Transactional(readOnly = true)
-	public Map<String, Double> getAttributeValueToScore(Algorithm algorithm, String userId) {
-		return fSUserPreferenceRepository.findByAlgorithmAndUserId(algorithm, userId)
+	public Map<String, Double> getAttributeValueToScore(Algorithm algorithm, Long tenantId, String userId) {
+		return fSUserPreferenceRepository.findByAlgorithmAndTenantIdAndUserId(algorithm, tenantId, userId)
 			.map(x -> x.getData().attributeToScore())
 			.orElse(null);
 	}

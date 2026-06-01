@@ -13,13 +13,15 @@ public interface RecommendationResultRepository extends JpaRepository<Recommenda
 		SELECT r
 		FROM RecommendationResult r
 		WHERE r.algorithm = :algorithm
+		AND r.tenantId = :tenantId
 		AND r.userId = :userId
 		ORDER BY r.id DESC
 		LIMIT 1
 		""")
-	Optional<RecommendationResult> getLatestRecommendationResult(Algorithm algorithm, String userId);
+	Optional<RecommendationResult> getLatestRecommendationResult(Algorithm algorithm, Long tenantId, String userId);
 
-	default Optional<RecommendationResult> getLatestFSRecommendationResult(Algorithm algorithm, String userId) {
-		return getLatestRecommendationResult(algorithm, userId);
+	default Optional<RecommendationResult> getLatestFSRecommendationResult(Algorithm algorithm, Long tenantId,
+		String userId) {
+		return getLatestRecommendationResult(algorithm, tenantId, userId);
 	}
 }
