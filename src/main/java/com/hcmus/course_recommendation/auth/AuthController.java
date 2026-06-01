@@ -5,6 +5,7 @@ import java.security.Principal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hcmus.course_recommendation.auth.dto.LoginRequest;
@@ -24,13 +25,14 @@ public class AuthController {
 	private final UserService userService;
 
 	@PostMapping("/auth/register")
-	public RestResponse<Void> register(@RequestBody RegisterRequest registerRequest, @TenantId Long tenantId) {
-		authService.register(registerRequest);
+	public RestResponse<Void> register(@RequestBody RegisterRequest registerRequest,
+		@RequestParam String organization) {
+		authService.register(registerRequest, organization);
 		return RestResponse.make();
 	}
 
 	@PostMapping("/auth/login")
-	public RestResponse<LoginResponse> login(@RequestBody LoginRequest loginRequest, @TenantId Long tenantId) {
+	public RestResponse<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
 		return RestResponse.make(authService.login(loginRequest));
 	}
 

@@ -16,6 +16,9 @@ import com.hcmus.course_recommendation.auth.dto.RegisterRequest;
 import com.hcmus.course_recommendation.auth.mapper.AuthMapper;
 import com.hcmus.course_recommendation.common.exception.BadRequestException;
 import com.hcmus.course_recommendation.common.exception.GlobalErrorCode;
+import com.hcmus.course_recommendation.common.exception.NotFoundException;
+import com.hcmus.course_recommendation.tenant.Tenant;
+import com.hcmus.course_recommendation.tenant.TenantRepository;
 import com.hcmus.course_recommendation.user.Role;
 import com.hcmus.course_recommendation.user.User;
 import com.hcmus.course_recommendation.user.UserRepository;
@@ -32,12 +35,17 @@ public class AuthService {
 	private final UserRepository userRepository;
 	private final JwtService jwtService;
 	private final AuthMapper authMapper;
+	private final TenantRepository tenantRepository;
 
-	public void register(RegisterRequest request) {
+	public void register(RegisterRequest request, String organization) {
+		Long tenantId = tenantRepository.findByName(organization)
+			.map(Tenant::getId)
+			.orElseThrow(() -> new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND, organization));
 
 		var user = authMapper.toUser(request).toBuilder()
 			.roles(List.of(Role.USER))
 			.password(passwordEncoder.encode(request.getPassword()))
+			.tenantId(tenantId)
 			.build();
 
 		try {
