@@ -2,7 +2,6 @@ package com.hcmus.course_recommendation.auth;
 
 import java.util.List;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -43,16 +42,16 @@ public class AuthService {
 			.password(passwordEncoder.encode(request.getPassword()))
 			.build();
 
-		try {
-			var savedUser = userRepository.save(user);
-
-			// Save dummy avatar
-			userRepository.save(savedUser.toBuilder()
-				.avatarUrl(String.format("https://picsum.photos/seed/%s/1600/900", savedUser.getId()))
-				.build());
-		} catch (DataIntegrityViolationException exception) {
+		if (userRepository.findByEmailAndTenantId(request.getEmail(), tenantId).isPresent()) {
 			throw new BadRequestException(GlobalErrorCode.EMAIL_DUPLICATED);
 		}
+
+		var savedUser = userRepository.save(user);
+
+		// Save dummy avatar
+		userRepository.save(savedUser.toBuilder()
+			.avatarUrl(String.format("https://picsum.photos/seed/%s/1600/900", savedUser.getId()))
+			.build());
 	}
 
 	@Transactional
@@ -65,16 +64,16 @@ public class AuthService {
 			.tenantId(request.getTenantId())
 			.build();
 
-		try {
-			var savedUser = userRepository.save(user);
-
-			// Save dummy avatar
-			userRepository.save(savedUser.toBuilder()
-				.avatarUrl(String.format("https://picsum.photos/seed/%s/1600/900", savedUser.getId()))
-				.build());
-		} catch (DataIntegrityViolationException exception) {
+		if (userRepository.findByEmailAndTenantId(request.getEmail(), request.getTenantId()).isPresent()) {
 			throw new BadRequestException(GlobalErrorCode.EMAIL_DUPLICATED);
 		}
+
+		var savedUser = userRepository.save(user);
+
+		// Save dummy avatar
+		userRepository.save(savedUser.toBuilder()
+			.avatarUrl(String.format("https://picsum.photos/seed/%s/1600/900", savedUser.getId()))
+			.build());
 	}
 
 	public LoginResponse login(LoginRequest request, Long tenantId) {
