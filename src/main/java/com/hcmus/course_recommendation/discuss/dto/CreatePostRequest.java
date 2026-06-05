@@ -1,6 +1,5 @@
 package com.hcmus.course_recommendation.discuss.dto;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hcmus.course_recommendation.course.model.Algorithm;
 
@@ -22,6 +21,5 @@ public class CreatePostRequest {
 	private Long tenantId;
 	private Algorithm algorithm;
 	private String content;
-	@JsonAlias("courseId")
 	private String courseCode;
 }

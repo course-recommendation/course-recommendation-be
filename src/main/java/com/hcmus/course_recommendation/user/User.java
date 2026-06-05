@@ -1,5 +1,6 @@
 package com.hcmus.course_recommendation.user;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ import lombok.Setter;
 @Setter
 @Table(name = "users")
 @Builder(toBuilder = true)
-public class User {
+public class User implements Serializable {
 	@Id
 	@Builder.Default
 	private String id = UUID.randomUUID().toString();

@@ -1,5 +1,7 @@
 package com.hcmus.course_recommendation.recommendation.model;
 
+import java.io.Serializable;
+
 import com.hcmus.course_recommendation.course.model.Algorithm;
 
 import jakarta.persistence.Entity;
@@ -20,9 +22,9 @@ import lombok.Setter;
 @Setter
 @Builder
 @Entity
-public class Attribute {
+public class Attribute implements Serializable {
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	@Enumerated(EnumType.STRING)
 	private Algorithm algorithm;

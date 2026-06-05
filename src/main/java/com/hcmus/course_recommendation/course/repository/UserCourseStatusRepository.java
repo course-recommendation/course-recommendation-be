@@ -6,6 +6,8 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.course.model.UserCourseStatus;
@@ -55,4 +57,24 @@ public interface UserCourseStatusRepository extends JpaRepository<UserCourseStat
 		AND status <> :status
 		""")
 	void deleteByUserIdAndCourseIdAndStatusNot(String userId, Long courseId, UserCourseStatusEnum status);
+
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM UserCourseStatus s WHERE s.userId = :userId")
+	void deleteByUserId(@Param("userId") String userId);
+
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM UserCourseStatus s WHERE s.userId IN :userIds")
+	void deleteByUserIdIn(@Param("userIds") List<String> userIds);
+
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM UserCourseStatus s WHERE s.courseId = :courseId")
+	void deleteByCourseId(@Param("courseId") Long courseId);
+
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM UserCourseStatus s WHERE s.courseId IN :courseIds")
+	void deleteByCourseIdIn(@Param("courseIds") List<Long> courseIds);
 }

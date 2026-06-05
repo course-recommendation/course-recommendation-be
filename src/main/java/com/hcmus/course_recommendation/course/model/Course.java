@@ -1,5 +1,7 @@
 package com.hcmus.course_recommendation.course.model;
 
+import java.io.Serializable;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Entity;
@@ -20,7 +22,7 @@ import lombok.Setter;
 @Setter
 @Builder(toBuilder = true)
 @Entity
-public class Course {
+public class Course implements Serializable {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;

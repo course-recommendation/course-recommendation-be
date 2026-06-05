@@ -1,9 +1,13 @@
 package com.hcmus.course_recommendation.recommendation.fs.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.recommendation.fs.model.RecommendationResult;
@@ -24,4 +28,14 @@ public interface RecommendationResultRepository extends JpaRepository<Recommenda
 		String userId) {
 		return getLatestRecommendationResult(algorithm, tenantId, userId);
 	}
+
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM RecommendationResult r WHERE r.userId = :userId")
+	void deleteByUserId(@Param("userId") String userId);
+
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM RecommendationResult r WHERE r.userId IN :userIds")
+	void deleteByUserIdIn(@Param("userIds") List<String> userIds);
 }

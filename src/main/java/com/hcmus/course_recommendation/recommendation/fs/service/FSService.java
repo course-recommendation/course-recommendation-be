@@ -20,7 +20,6 @@ import com.hcmus.course_recommendation.course.repository.UserCourseRatingReposit
 import com.hcmus.course_recommendation.course.service.CourseService;
 import com.hcmus.course_recommendation.discuss.repository.PostCommentRepository;
 import com.hcmus.course_recommendation.recommendation.RecommendationService;
-import com.hcmus.course_recommendation.recommendation.model.Attribute;
 import com.hcmus.course_recommendation.recommendation.fs.client.FSClient;
 import com.hcmus.course_recommendation.recommendation.fs.client.dto.ClientFSExtractSentimentsRequest;
 import com.hcmus.course_recommendation.recommendation.fs.client.dto.ClientFSItemReview;
@@ -37,6 +36,7 @@ import com.hcmus.course_recommendation.recommendation.fs.model.UserPreference;
 import com.hcmus.course_recommendation.recommendation.fs.model.UserPreferenceData;
 import com.hcmus.course_recommendation.recommendation.fs.repository.RecommendationResultRepository;
 import com.hcmus.course_recommendation.recommendation.fs.repository.UserPreferenceRepository;
+import com.hcmus.course_recommendation.recommendation.model.Attribute;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -186,7 +186,8 @@ public class FSService {
 
 		var clientFsExtractSentimentsRequest = ClientFSExtractSentimentsRequest.builder()
 			.reviews(clientFsItemReviews)
-			.attributes(recommendationService.getAttributes(Algorithm.FS, tenantId).stream().map(Attribute::getValue).toList())
+			.attributes(
+				recommendationService.getAttributes(Algorithm.FS, tenantId).stream().map(Attribute::getValue).toList())
 			.build();
 
 		var clientFsExtractSentimentsResult = fsClient.getSentiments(clientFsExtractSentimentsRequest);
@@ -218,6 +219,9 @@ public class FSService {
 
 	@Transactional
 	public void updateCoursesSentiments(Long tenantId) {
+		fsCourseSentimentRepository.deleteByTenantId(tenantId);
+		;
+
 		var attributes = recommendationService.getAttributes(Algorithm.FS, tenantId);
 
 		var courses = courseRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId);
