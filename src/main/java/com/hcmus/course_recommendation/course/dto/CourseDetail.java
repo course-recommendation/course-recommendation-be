@@ -11,6 +11,6 @@ import lombok.Builder;
 public record CourseDetail(
 	Course course,
 	UserCourseStatusEnum userCourseStatus,
-	Map<String, Integer> userAttributeValueToRatingScore
+	Map<Long, Integer> userAttributeIdToRatingScore
 ) {
 }

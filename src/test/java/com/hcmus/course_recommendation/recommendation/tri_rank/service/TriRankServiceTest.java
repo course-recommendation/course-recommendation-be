@@ -11,16 +11,16 @@ import com.hcmus.course_recommendation.course.model.UserCourseRating;
 
 class TriRankServiceTest {
 
-	private final TriRankService triRankService = new TriRankService(null, null);
+	private final TriRankService triRankService = new TriRankService(null, null, null);
 
 	@Test
 	void buildRatingFileContentShouldAverageScoresPerUserAndCourse() {
 		var courseIdToCourseCode = Map.of(1L, "B008DJIGR4", 2L, "B0094AHQ6S");
 		var userCourseRatings = List.of(
-			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeValue("theory").score(4).build(),
-			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeValue("homework").score(2).build(),
-			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(2L).attributeValue("screen").score(3).build(),
-			UserCourseRating.builder().userId("B_USER").courseId(1L).attributeValue("screen").score(5).build()
+			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeId(1L).score(4).build(),
+			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeId(2L).score(2).build(),
+			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(2L).attributeId(3L).score(3).build(),
+			UserCourseRating.builder().userId("B_USER").courseId(1L).attributeId(3L).score(5).build()
 		);
 
 		var content = triRankService.buildRatingFileContent(userCourseRatings, courseIdToCourseCode);
@@ -35,13 +35,14 @@ class TriRankServiceTest {
 	void buildSentimentFileContentShouldIncludeOnlyScoresAtLeastThree() {
 		var courseIdToCourseCode = Map.of(1L, "B008DJIGR4", 2L, "B0094AHQ6S");
 		var userCourseRatings = List.of(
-			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeValue("theory").score(4).build(),
-			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeValue("homework").score(2).build(),
-			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(2L).attributeValue("screen").score(3).build(),
-			UserCourseRating.builder().userId("B_USER").courseId(1L).attributeValue("screen").score(5).build()
+			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeId(1L).score(4).build(),
+			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(1L).attributeId(2L).score(2).build(),
+			UserCourseRating.builder().userId("A00900752UZ2JAC47K2RR").courseId(2L).attributeId(3L).score(3).build(),
+			UserCourseRating.builder().userId("B_USER").courseId(1L).attributeId(3L).score(5).build()
 		);
+		var attributeIdToValue = Map.of(1L, "theory", 2L, "homework", 3L, "screen");
 
-		var content = triRankService.buildSentimentFileContent(userCourseRatings, courseIdToCourseCode);
+		var content = triRankService.buildSentimentFileContent(userCourseRatings, courseIdToCourseCode, attributeIdToValue);
 
 		assertEquals(String.join("\n",
 			"A00900752UZ2JAC47K2RR,B008DJIGR4,theory:good:1",

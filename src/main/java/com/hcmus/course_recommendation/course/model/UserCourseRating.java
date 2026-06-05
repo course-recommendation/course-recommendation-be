@@ -22,6 +22,6 @@ public class UserCourseRating {
 	private Long id;
 	private String userId;
 	private Long courseId;
-	private String attributeValue;
+	private Long attributeId;
 	private Integer score;
 }

@@ -19,6 +19,7 @@ import com.hcmus.course_recommendation.course.repository.UserCourseRatingReposit
 import com.hcmus.course_recommendation.course.service.CourseService;
 import com.hcmus.course_recommendation.discuss.repository.PostCommentRepository;
 import com.hcmus.course_recommendation.recommendation.RecommendationService;
+import com.hcmus.course_recommendation.recommendation.model.Attribute;
 import com.hcmus.course_recommendation.recommendation.fs.client.FSClient;
 import com.hcmus.course_recommendation.recommendation.fs.client.dto.ClientFSExtractSentimentsRequest;
 import com.hcmus.course_recommendation.recommendation.fs.client.dto.ClientFSItemReview;
@@ -97,12 +98,12 @@ public class FSService {
 			preference.setWeight(3.0);
 		}
 
-		var attributeValues = recommendationService.getAttributeValues(Algorithm.FS, request.getTenantId());
+		var attributes = recommendationService.getAttributes(Algorithm.FS, request.getTenantId());
 		var itemIdToItemSentiments = courseService.getFsItemIdToItemSentiments(
 			request.getUserId(), request.getTenantId(), request.getFilterCoursesOptions(),
 			request.getCustomFilteredCourseCodes());
 		var response = fsClient.getRecommendation(ClientFSRecommendationRequest.builder()
-			.attributes(attributeValues)
+			.attributes(attributes.stream().map(Attribute::getValue).toList())
 			.itemIdToItemSentiments(fsMapper.toStringToClientFSItemSentiments(itemIdToItemSentiments))
 			.attributeToPreferenceConfigure(
 				fsMapper.toStringToClientFSPreferenceConfigure(request.getAttributeToPreferenceConfigure()))
@@ -123,7 +124,7 @@ public class FSService {
 
 	@Transactional
 	public ServerFSRecommendationResult getFsRefinedRecommendation(FSRefinedRecommendationRequest request) {
-		var attributeValues = recommendationService.getAttributeValues(Algorithm.FS, request.getTenantId());
+		var attributes = recommendationService.getAttributes(Algorithm.FS, request.getTenantId());
 		var recommendationResult = recommendationResultRepository.findById(request.getRecommendationId())
 			.orElseThrow(NotFoundException::new);
 		var recommendationResultData = (FsRecommendationResultData)recommendationResult.getData();
@@ -133,7 +134,7 @@ public class FSService {
 		var itemTradeoffVector = recommendationResultData.itemIdToTradeoffVector().get(request.getItemId());
 
 		var clientRequest = ClientFSRefinedRecommendationRequest.builder()
-			.attributes(attributeValues)
+			.attributes(attributes.stream().map(Attribute::getValue).toList())
 			.itemIdToItemSentiments(fsMapper.toStringToClientFSItemSentiments(itemIdToItemSentiments))
 			.oldAttributeToPreferenceConfigure(fsMapper.toStringToClientFSPreferenceConfigure(
 				recommendationResultData.attributeToPreferenceConfigure()))
@@ -183,7 +184,7 @@ public class FSService {
 
 		var clientFsExtractSentimentsRequest = ClientFSExtractSentimentsRequest.builder()
 			.reviews(clientFsItemReviews)
-			.attributes(recommendationService.getAttributeValues(Algorithm.FS, tenantId))
+			.attributes(recommendationService.getAttributes(Algorithm.FS, tenantId).stream().map(Attribute::getValue).toList())
 			.build();
 
 		var clientFsExtractSentimentsResult = fsClient.getSentiments(clientFsExtractSentimentsRequest);
@@ -200,7 +201,7 @@ public class FSService {
 
 	@Transactional
 	public void updateCoursesSentiments(Long tenantId) {
-		var attributeValues = recommendationService.getAttributeValues(Algorithm.FS, tenantId);
+		var attributes = recommendationService.getAttributes(Algorithm.FS, tenantId);
 
 		var courses = courseRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId);
 
@@ -211,16 +212,16 @@ public class FSService {
 				.filter(rating -> rating.getCourseId().equals(course.getId()))
 				.toList();
 
-			var itemSentiments = attributeValues.stream().map(attributeValue -> {
+			var itemSentiments = attributes.stream().map(attribute -> {
 				var ratingsOfAttribute = ratingsOfCourse.stream()
-					.filter(rating -> rating.getAttributeValue().equals(attributeValue))
+					.filter(rating -> attribute.getId().equals(rating.getAttributeId()))
 					.toList();
 
 				var averageScore =
 					ratingsOfAttribute.stream().mapToInt(UserCourseRating::getScore).average().orElse(3.0);
 
 				return FSItemSentiment.builder()
-					.attribute(attributeValue)
+					.attribute(attribute.getValue())
 					.sentimentScore(averageScore)
 					.build();
 			}).toList();

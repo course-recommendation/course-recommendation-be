@@ -89,7 +89,7 @@ public class CourseController {
 	@PutMapping("/courses/{courseId}/rating")
 	public RestResponse<Void> rateCourse(@PathVariable Long courseId, Principal principal, @TenantId Long tenantId,
 		@RequestBody RateCourseRequest request) {
-		courseService.rateCourse(principal.getName(), tenantId, courseId, request.getAttributeValue(),
+		courseService.rateCourse(principal.getName(), tenantId, courseId, request.getAttributeId(),
 			request.getScore());
 
 		return RestResponse.make();

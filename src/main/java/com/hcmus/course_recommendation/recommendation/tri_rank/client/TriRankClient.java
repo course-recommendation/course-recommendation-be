@@ -11,6 +11,7 @@ import org.springframework.web.service.annotation.PostExchange;
 
 import com.hcmus.course_recommendation.recommendation.tri_rank.client.dto.ClientTriRankRecommendationRequest;
 import com.hcmus.course_recommendation.recommendation.tri_rank.client.dto.ClientTriRankRecommendationResult;
+import com.hcmus.course_recommendation.recommendation.tri_rank.client.dto.ClientTriRankTrainRequest;
 
 @HttpExchange
 @Component
@@ -19,7 +20,11 @@ public interface TriRankClient {
 	ClientTriRankRecommendationResult getRecommendation(@RequestBody ClientTriRankRecommendationRequest request);
 
 	@GetExchange("/trirank/topk-aspect-of-item")
-	List<List<Object>> getTopKAspectOfItem(@RequestParam("item_id") String itemId,
+	List<List<Object>> getTopKAspectOfItem(@RequestParam("tenant_id") Long tenantId,
+		@RequestParam("item_id") String itemId,
 		@RequestParam("k") Long k);
+
+	@PostExchange("/trirank/train")
+	void train(@RequestBody ClientTriRankTrainRequest request);
 }
 

@@ -12,7 +12,6 @@ import lombok.Builder;
 @Builder
 public record ServerTriRankRecommendationResult(
 	Long id,
-	Map<String, Double> attributeToScore,
 	List<CourseDetail> courseDetails,
 	List<FilterCoursesOption> filterCoursesOptions,
 	List<String> customFilteredCourseCodes,

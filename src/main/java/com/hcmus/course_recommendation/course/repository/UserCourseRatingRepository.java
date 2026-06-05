@@ -13,8 +13,8 @@ public interface UserCourseRatingRepository extends JpaRepository<UserCourseRati
 
 	List<UserCourseRating> findByUserId(String userId);
 
-	Optional<UserCourseRating> findByUserIdAndCourseIdAndAttributeValue(String userId, Long courseId,
-		String attributeValue);
+	Optional<UserCourseRating> findByUserIdAndCourseIdAndAttributeId(String userId, Long courseId,
+		Long attributeId);
 
 	@Query("""
 		SELECT ucr

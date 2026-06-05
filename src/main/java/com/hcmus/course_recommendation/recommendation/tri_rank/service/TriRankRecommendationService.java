@@ -67,6 +67,7 @@ public class TriRankRecommendationService {
 			request.getUserId(), newUserPreferenceData));
 
 		var clientRequest = ClientTriRankRecommendationRequest.builder()
+			.tenantId(request.getTenantId())
 			.uid(request.getUserId())
 			.k(courseService.countByAlgorithm(Algorithm.TRI_RANK, request.getTenantId()))
 			.preferences(request.getAttributeToScore()
@@ -88,7 +89,7 @@ public class TriRankRecommendationService {
 			.distinct()
 			.limit(request.getNumberOfCourses())
 			.toList();
-		var itemIdToItemAspects = getItemIdToItemAspects(recommendationCourseCodes);
+		var itemIdToItemAspects = getItemIdToItemAspects(request.getTenantId(), recommendationCourseCodes);
 
 		var data = TriRankRecommendationResultData.builder()
 			.courseCodes(recommendationCourseCodes)
@@ -110,21 +111,22 @@ public class TriRankRecommendationService {
 			tenantId, userId);
 		return latestRecommendationResult.map(recommendationResult -> {
 			var recommendationResultData = (TriRankRecommendationResultData)recommendationResult.getData();
-			var itemIdToItemAspects = getItemIdToItemAspects(recommendationResultData.courseCodes());
+			var itemIdToItemAspects = getItemIdToItemAspects(tenantId, recommendationResultData.courseCodes());
 			return toServerTriRankRecommendationResult(recommendationResult.getId(), recommendationResultData,
 				itemIdToItemAspects, userId, tenantId);
 		}).orElse(null);
 	}
 
-	private Map<String, List<TriRankItemAspect>> getItemIdToItemAspects(List<String> courseCodes) {
+	private Map<String, List<TriRankItemAspect>> getItemIdToItemAspects(Long tenantId, List<String> courseCodes) {
 		return courseCodes.stream()
 			.distinct()
-			.collect(Collectors.toMap(courseCode -> courseCode, this::getItemAspectsByCourseCode,
+			.collect(Collectors.toMap(courseCode -> courseCode,
+				courseCode -> getItemAspectsByCourseCode(tenantId, courseCode),
 				(existing, ignored) -> existing, java.util.LinkedHashMap::new));
 	}
 
-	private List<TriRankItemAspect> getItemAspectsByCourseCode(String courseCode) {
-		return scaleItemAspects(toTriRankItemAspects(triRankClient.getTopKAspectOfItem(courseCode,
+	private List<TriRankItemAspect> getItemAspectsByCourseCode(Long tenantId, String courseCode) {
+		return scaleItemAspects(toTriRankItemAspects(triRankClient.getTopKAspectOfItem(tenantId, courseCode,
 			PAGE_SIZE_FOR_ALL_ITEMS)));
 	}
 

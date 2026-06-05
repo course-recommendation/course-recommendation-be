@@ -12,6 +12,6 @@ import lombok.Setter;
 @Setter
 @Builder
 public class RateCourseRequest {
-	private String attributeValue;
+	private Long attributeId;
 	private Integer score;
 }

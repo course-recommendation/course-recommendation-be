@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,6 +25,7 @@ import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.recommendation.model.Attribute;
 import com.hcmus.course_recommendation.recommendation.repository.AttributeRepository;
+import com.hcmus.course_recommendation.recommendation.tri_rank.service.TriRankService;
 import com.hcmus.course_recommendation.tenant.TenantId;
 import com.hcmus.course_recommendation.user.UserService;
 
@@ -36,6 +38,7 @@ public class AdminController {
 	private final CourseRepository courseRepository;
 	private final AttributeRepository attributeRepository;
 	private final UserService userService;
+	private final TriRankService triRankService;
 
 	/**
 	 * Check if current tenant is ready: at least 1 course and at least 1 attribute
@@ -118,5 +121,18 @@ public class AdminController {
 			return RestResponse.make(false);
 		return RestResponse.make(
 			user.getRoles() != null && user.getRoles().stream().anyMatch(r -> r.name().equals("ADMIN")));
+	}
+
+	@PreAuthorize("hasRole('ADMIN')")
+	@PostMapping("/trirank/train")
+	public RestResponse<Void> trainTriRankForMyTenant(@TenantId Long tenantId) {
+		triRankService.trainTriRank(tenantId);
+		return RestResponse.make();
+	}
+
+	@PostMapping("/trirank/{tenantId}/train")
+	public RestResponse<Void> trainTriRank(@PathVariable Long tenantId) {
+		triRankService.trainTriRank(tenantId);
+		return RestResponse.make();
 	}
 }

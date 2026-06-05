@@ -20,11 +20,8 @@ public class RecommendationService {
 	private final UserPreferenceRepository fSUserPreferenceRepository;
 
 	@Transactional(readOnly = true)
-	public List<String> getAttributeValues(Algorithm algorithm, Long tenantId) {
-		return attributeRepository.findByAlgorithmAndTenantId(algorithm, tenantId)
-			.stream()
-			.map(Attribute::getValue)
-			.toList();
+	public List<Attribute> getAttributes(Algorithm algorithm, Long tenantId) {
+		return attributeRepository.findByAlgorithmAndTenantId(algorithm, tenantId);
 	}
 
 	@Transactional(readOnly = true)

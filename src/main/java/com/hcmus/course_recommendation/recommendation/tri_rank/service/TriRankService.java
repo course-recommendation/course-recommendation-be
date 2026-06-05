@@ -24,6 +24,10 @@ import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
+import com.hcmus.course_recommendation.recommendation.model.Attribute;
+import com.hcmus.course_recommendation.recommendation.repository.AttributeRepository;
+import com.hcmus.course_recommendation.recommendation.tri_rank.client.TriRankClient;
+import com.hcmus.course_recommendation.recommendation.tri_rank.client.dto.ClientTriRankTrainRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,17 +40,27 @@ public class TriRankService {
 	static final Algorithm TRI_RANK_ALGORITHM = Algorithm.TRI_RANK;
 	static final String STORAGE_ACCOUNT_NAME = "stcourserecom";
 	static final String CONTAINER_NAME = "dataset";
-	static final String RATING_FILE_NAME = "rating.txt";
-	static final String SENTIMENT_FILE_NAME = "sentiment.txt";
+	static final String RATING_FILE_SUFFIX = ".rating.txt";
+	static final String SENTIMENT_FILE_SUFFIX = ".sentiment.txt";
 	static final long FIXED_TIMESTAMP = 1400630400L;
 	static final int SENTIMENT_GOOD_SCORE_THRESHOLD = 3;
 
 	private final CourseRepository courseRepository;
 	private final UserCourseRatingRepository userCourseRatingRepository;
+	private final AttributeRepository attributeRepository;
+	private final TriRankClient triRankClient;
+
+	public void trainTriRank(Long tenantId) {
+		exportTriRankDatasetToAzure(tenantId);
+		triRankClient.train(ClientTriRankTrainRequest.builder().tenantId(tenantId).build());
+	}
 
 	public void exportTriRankDatasetToAzure(Long tenantId) {
 		var courseIdToCourseCode = courseRepository.findByAlgorithmAndTenantId(TRI_RANK_ALGORITHM, tenantId).stream()
 			.collect(Collectors.toMap(Course::getId, Course::getCode));
+
+		var attributeIdToValue = attributeRepository.findByAlgorithmAndTenantId(TRI_RANK_ALGORITHM, tenantId).stream()
+			.collect(Collectors.toMap(Attribute::getId, Attribute::getValue));
 
 		var userCourseRatings = userCourseRatingRepository.findByAlgorithmAndTenantId(TRI_RANK_ALGORITHM, tenantId)
 			.stream()
@@ -54,19 +68,21 @@ public class TriRankService {
 			.toList();
 
 		var ratingContent = buildRatingFileContent(userCourseRatings, courseIdToCourseCode);
-		var sentimentContent = buildSentimentFileContent(userCourseRatings, courseIdToCourseCode);
+		var sentimentContent = buildSentimentFileContent(userCourseRatings, courseIdToCourseCode, attributeIdToValue);
 
+		var ratingBlobName = tenantId + RATING_FILE_SUFFIX;
+		var sentimentBlobName = tenantId + SENTIMENT_FILE_SUFFIX;
 		var tempDirectory = createTempDirectory();
 		try {
-			var ratingFile = tempDirectory.resolve(RATING_FILE_NAME);
-			var sentimentFile = tempDirectory.resolve(SENTIMENT_FILE_NAME);
+			var ratingFile = tempDirectory.resolve(ratingBlobName);
+			var sentimentFile = tempDirectory.resolve(sentimentBlobName);
 
 			Files.writeString(ratingFile, ratingContent, StandardCharsets.UTF_8);
 			Files.writeString(sentimentFile, sentimentContent, StandardCharsets.UTF_8);
 
 			var containerClient = getContainerClient();
-			uploadFile(containerClient, ratingFile, RATING_FILE_NAME);
-			uploadFile(containerClient, sentimentFile, SENTIMENT_FILE_NAME);
+			uploadFile(containerClient, ratingFile, ratingBlobName);
+			uploadFile(containerClient, sentimentFile, sentimentBlobName);
 
 			log.info("Uploaded TriRank dataset files to Azure Blob Storage container '{}' in account '{}'",
 				CONTAINER_NAME, STORAGE_ACCOUNT_NAME);
@@ -82,7 +98,7 @@ public class TriRankService {
 			.filter(rating -> courseIdToCourseCode.containsKey(rating.getCourseId()))
 			.sorted(Comparator.comparing(UserCourseRating::getUserId)
 				.thenComparing(rating -> courseIdToCourseCode.get(rating.getCourseId()))
-				.thenComparing(UserCourseRating::getAttributeValue))
+				.thenComparing(UserCourseRating::getAttributeId))
 			.collect(Collectors.groupingBy(
 				rating -> new UserCourseKey(rating.getUserId(), courseIdToCourseCode.get(rating.getCourseId())),
 				LinkedHashMap::new,
@@ -93,13 +109,14 @@ public class TriRankService {
 			.collect(Collectors.joining("\n"));
 	}
 
-	String buildSentimentFileContent(List<UserCourseRating> userCourseRatings, Map<Long, String> courseIdToCourseCode) {
+	String buildSentimentFileContent(List<UserCourseRating> userCourseRatings, Map<Long, String> courseIdToCourseCode,
+		Map<Long, String> attributeIdToValue) {
 		return userCourseRatings.stream()
 			.filter(rating -> courseIdToCourseCode.containsKey(rating.getCourseId()))
 			.filter(rating -> Objects.nonNull(rating.getScore()) && rating.getScore() >= SENTIMENT_GOOD_SCORE_THRESHOLD)
 			.sorted(Comparator.comparing(UserCourseRating::getUserId)
 				.thenComparing(rating -> courseIdToCourseCode.get(rating.getCourseId()))
-				.thenComparing(UserCourseRating::getAttributeValue))
+				.thenComparing(UserCourseRating::getAttributeId))
 			.collect(Collectors.groupingBy(
 				rating -> new UserCourseKey(rating.getUserId(), courseIdToCourseCode.get(rating.getCourseId())),
 				LinkedHashMap::new,
@@ -107,7 +124,8 @@ public class TriRankService {
 			.entrySet().stream()
 			.map(entry -> {
 				var attributes = entry.getValue().stream()
-					.map(rating -> rating.getAttributeValue() + ":good:1")
+					.map(rating -> attributeIdToValue.getOrDefault(rating.getAttributeId(),
+						String.valueOf(rating.getAttributeId())) + ":good:1")
 					.collect(Collectors.joining(","));
 				return entry.getKey().userId() + "," + entry.getKey().courseCode() + "," + attributes;
 			})

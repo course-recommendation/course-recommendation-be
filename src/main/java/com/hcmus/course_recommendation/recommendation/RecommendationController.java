@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hcmus.course_recommendation.common.RestResponse;
 import com.hcmus.course_recommendation.course.model.Algorithm;
+import com.hcmus.course_recommendation.recommendation.model.Attribute;
 import com.hcmus.course_recommendation.tenant.TenantId;
 
 import lombok.RequiredArgsConstructor;
@@ -20,8 +21,8 @@ public class RecommendationController {
 	private final RecommendationService recommendationService;
 
 	@GetMapping("/attributes")
-	public RestResponse<List<String>> getAttributeValues(@RequestParam Algorithm algorithm, @TenantId Long tenantId) {
-		return RestResponse.make(recommendationService.getAttributeValues(algorithm, tenantId));
+	public RestResponse<List<Attribute>> getAttributes(@RequestParam Algorithm algorithm, @TenantId Long tenantId) {
+		return RestResponse.make(recommendationService.getAttributes(algorithm, tenantId));
 	}
 
 	@GetMapping("/user-preference")

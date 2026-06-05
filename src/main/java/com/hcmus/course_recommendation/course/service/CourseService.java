@@ -126,9 +126,9 @@ public class CourseService {
 				.userCourseStatus(Optional.ofNullable(courseIdToUserCourseStatus.get(course.getId()))
 					.map(UserCourseStatus::getStatus)
 					.orElse(null))
-				.userAttributeValueToRatingScore(courseIdToUserCourseRatings.getOrDefault(course.getId(), List.of())
+				.userAttributeIdToRatingScore(courseIdToUserCourseRatings.getOrDefault(course.getId(), List.of())
 					.stream()
-					.collect(Collectors.toMap(UserCourseRating::getAttributeValue, UserCourseRating::getScore)))
+					.collect(Collectors.toMap(UserCourseRating::getAttributeId, UserCourseRating::getScore)))
 				.build())
 			.toList();
 	}
@@ -214,19 +214,19 @@ public class CourseService {
 	}
 
 	@Transactional
-	public void rateCourse(String userId, Long tenantId, Long courseId, String attributeValue, Integer score) {
+	public void rateCourse(String userId, Long tenantId, Long courseId, Long attributeId, Integer score) {
 		if (!courseRepository.existsByIdAndTenantId(courseId, tenantId)) {
 			throw new NotFoundException(GlobalErrorCode.NOT_FOUND, courseId);
 		}
 
-		var oldUserCourseRating = userCourseRatingRepository.findByUserIdAndCourseIdAndAttributeValue(userId, courseId,
-			attributeValue);
+		var oldUserCourseRating = userCourseRatingRepository.findByUserIdAndCourseIdAndAttributeId(userId, courseId,
+			attributeId);
 
 		if (oldUserCourseRating.isEmpty()) {
 			userCourseRatingRepository.save(UserCourseRating.builder()
 				.courseId(courseId)
 				.userId(userId)
-				.attributeValue(attributeValue)
+				.attributeId(attributeId)
 				.score(score)
 				.build());
 		} else {
