@@ -22,11 +22,12 @@ import com.hcmus.course_recommendation.course.dto.UpdateUserCourseStatusesReques
 import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.model.FSItemSentiment;
-import com.hcmus.course_recommendation.course.model.FsCourseExtraData;
+import com.hcmus.course_recommendation.course.model.FsCourseSentiment;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 import com.hcmus.course_recommendation.course.model.UserCourseStatus;
 import com.hcmus.course_recommendation.course.model.UserCourseStatusEnum;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
+import com.hcmus.course_recommendation.course.repository.FsCourseSentimentRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseStatusRepository;
 import com.hcmus.course_recommendation.common.exception.GlobalErrorCode;
@@ -41,6 +42,7 @@ public class CourseService {
 	private final UserCourseStatusRepository userCourseStatusRepository;
 	private final CourseRepository courseRepository;
 	private final UserCourseRatingRepository userCourseRatingRepository;
+	private final FsCourseSentimentRepository fsCourseSentimentRepository;
 
 	@Transactional
 	public void updateUserCourseStatuses(UpdateUserCourseStatusesRequest request) {
@@ -205,12 +207,18 @@ public class CourseService {
 		Long tenantId, List<FilterCoursesOption> filterCoursesOptions, List<String> customFilteredCourseCodes) {
 		var filteredCourseCodes = getFilteredCourseCodes(Algorithm.FS, tenantId, userId, filterCoursesOptions,
 			customFilteredCourseCodes);
-		return courseRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId)
+		var courses = courseRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId)
 			.stream()
 			.filter(course -> !filteredCourseCodes.contains(course.getCode()))
-			.collect(
-				Collectors.toMap(Course::getCode,
-					course -> ((FsCourseExtraData)course.getExtraData()).itemSentiments()));
+			.toList();
+		var courseIdToCode = courses.stream().collect(Collectors.toMap(Course::getId, Course::getCode));
+		var sentimentsByCourseId = fsCourseSentimentRepository
+			.findByCourseIdIn(courses.stream().map(Course::getId).toList())
+			.stream()
+			.collect(Collectors.toMap(FsCourseSentiment::getCourseId, FsCourseSentiment::getItemSentiments));
+		return courseIdToCode.entrySet().stream()
+			.filter(entry -> sentimentsByCourseId.containsKey(entry.getKey()))
+			.collect(Collectors.toMap(Map.Entry::getValue, entry -> sentimentsByCourseId.get(entry.getKey())));
 	}
 
 	@Transactional

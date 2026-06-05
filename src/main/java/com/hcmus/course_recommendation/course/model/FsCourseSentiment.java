@@ -1,10 +1,11 @@
 package com.hcmus.course_recommendation.course.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -20,21 +21,13 @@ import lombok.Setter;
 @Setter
 @Builder(toBuilder = true)
 @Entity
-public class Course {
+public class FsCourseSentiment {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private String code;
+	private Long courseId;
 
-	@Enumerated(EnumType.STRING)
-	@JsonIgnore
-	private Algorithm algorithm;
-
-	@JsonIgnore
-	private Long tenantId;
-
-	private String name;
-	private String description;
-	private String thumbnailUrl;
+	@JdbcTypeCode(SqlTypes.JSON)
+	private List<FSItemSentiment> itemSentiments;
 }

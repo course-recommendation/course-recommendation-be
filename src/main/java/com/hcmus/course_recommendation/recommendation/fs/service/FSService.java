@@ -12,9 +12,10 @@ import com.hcmus.course_recommendation.common.exception.NotFoundException;
 import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.model.FSItemSentiment;
-import com.hcmus.course_recommendation.course.model.FsCourseExtraData;
+import com.hcmus.course_recommendation.course.model.FsCourseSentiment;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
+import com.hcmus.course_recommendation.course.repository.FsCourseSentimentRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
 import com.hcmus.course_recommendation.course.service.CourseService;
 import com.hcmus.course_recommendation.discuss.repository.PostCommentRepository;
@@ -51,6 +52,7 @@ public class FSService {
 	private final UserPreferenceRepository fSUserPreferenceRepository;
 	private final PostCommentRepository postCommentRepository;
 	private final CourseRepository courseRepository;
+	private final FsCourseSentimentRepository fsCourseSentimentRepository;
 	private final RecommendationService recommendationService;
 	private final UserCourseRatingRepository userCourseRatingRepository;
 
@@ -189,14 +191,29 @@ public class FSService {
 
 		var clientFsExtractSentimentsResult = fsClient.getSentiments(clientFsExtractSentimentsRequest);
 
-		courseRepository.saveAll(clientFsExtractSentimentsResult.stream().map(sentiment -> Course.builder()
-			.code(sentiment.itemId())
-			.algorithm(Algorithm.FS)
-			.tenantId(tenantId)
-			.extraData(FsCourseExtraData.builder()
-				.itemSentiments(fsMapper.toFSItemSentiments(sentiment.itemSentiments()))
+		var savedCourses = courseRepository.saveAll(clientFsExtractSentimentsResult.stream()
+			.map(sentiment -> Course.builder()
+				.code(sentiment.itemId())
+				.algorithm(Algorithm.FS)
+				.tenantId(tenantId)
 				.build())
-			.build()).toList());
+			.toList());
+		fsCourseSentimentRepository.saveAll(savedCourses.stream()
+			.map(course -> {
+				var sentiment = clientFsExtractSentimentsResult.stream()
+					.filter(s -> s.itemId().equals(course.getCode()))
+					.findFirst()
+					.orElseThrow();
+				return fsCourseSentimentRepository.findByCourseId(course.getId())
+					.map(existing -> existing.toBuilder()
+						.itemSentiments(fsMapper.toFSItemSentiments(sentiment.itemSentiments()))
+						.build())
+					.orElse(FsCourseSentiment.builder()
+						.courseId(course.getId())
+						.itemSentiments(fsMapper.toFSItemSentiments(sentiment.itemSentiments()))
+						.build());
+			})
+			.toList());
 	}
 
 	@Transactional
@@ -207,7 +224,7 @@ public class FSService {
 
 		var userCourseRatings = userCourseRatingRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId);
 
-		var newCourses = courses.stream().map(course -> {
+		var newSentiments = courses.stream().map(course -> {
 			var ratingsOfCourse = userCourseRatings.stream()
 				.filter(rating -> rating.getCourseId().equals(course.getId()))
 				.toList();
@@ -226,13 +243,14 @@ public class FSService {
 					.build();
 			}).toList();
 
-			return course.toBuilder()
-				.extraData(FsCourseExtraData.builder()
+			return fsCourseSentimentRepository.findByCourseId(course.getId())
+				.map(existing -> existing.toBuilder().itemSentiments(itemSentiments).build())
+				.orElse(FsCourseSentiment.builder()
+					.courseId(course.getId())
 					.itemSentiments(itemSentiments)
-					.build())
-				.build();
+					.build());
 		}).toList();
 
-		courseRepository.saveAll(newCourses);
+		fsCourseSentimentRepository.saveAll(newSentiments);
 	}
 }
