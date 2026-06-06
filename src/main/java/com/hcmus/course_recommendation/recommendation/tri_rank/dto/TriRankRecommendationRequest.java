@@ -18,7 +18,6 @@ import lombok.Setter;
 @Setter
 @Builder
 public class TriRankRecommendationRequest {
-	private Integer numberOfCourses = 5;
 	private Map<String, Double> attributeToScore;
 	private List<FilterCoursesOption> filterCoursesOptions;
 	private List<String> customFilteredCourseCodes;

@@ -87,7 +87,6 @@ public class TriRankRecommendationService {
 			.stream()
 			.filter(courseCode -> !filteredCourseCodes.contains(courseCode))
 			.distinct()
-			.limit(request.getNumberOfCourses())
 			.toList();
 		var itemIdToItemAspects = getItemIdToItemAspects(request.getTenantId(), recommendationCourseCodes);
 

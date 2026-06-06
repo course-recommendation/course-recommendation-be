@@ -38,4 +38,6 @@ public class User implements Serializable {
 	@JsonIgnore
 	@JdbcTypeCode(SqlTypes.JSON)
 	private List<Role> roles;
+	@Builder.Default
+	private boolean showExplanation = true;
 }
