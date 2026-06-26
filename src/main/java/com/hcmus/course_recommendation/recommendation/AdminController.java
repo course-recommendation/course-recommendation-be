@@ -246,10 +246,10 @@ public class AdminController {
 	public RestResponse<PageResponse<AdminRatingRow>> getRatings(
 		@TenantId Long tenantId,
 		@PageableDefault(size = 10) Pageable pageable,
-		@RequestParam(required = false) String userId,
+		@RequestParam(required = false) String userEmail,
 		@RequestParam(required = false) String courseCode,
 		@RequestParam(required = false) String attributeName) {
-		return RestResponse.make(adminService.getRatings(tenantId, pageable, userId, courseCode, attributeName));
+		return RestResponse.make(adminService.getRatings(tenantId, pageable, userEmail, courseCode, attributeName));
 	}
 
 	@PreAuthorize("hasRole('ADMIN')")

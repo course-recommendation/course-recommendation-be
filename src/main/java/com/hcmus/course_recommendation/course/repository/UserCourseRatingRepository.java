@@ -52,6 +52,29 @@ public interface UserCourseRatingRepository extends JpaRepository<UserCourseRati
 		@Param("attributeId") Long attributeId,
 		Pageable pageable);
 
+	@Query(value = """
+		SELECT ucr FROM UserCourseRating ucr
+		JOIN Course c ON c.id = ucr.courseId
+		WHERE c.tenantId = :tenantId
+		AND ucr.userId IN :userIds
+		AND (:courseId IS NULL OR ucr.courseId = :courseId)
+		AND (:attributeId IS NULL OR ucr.attributeId = :attributeId)
+		""",
+		countQuery = """
+		SELECT COUNT(ucr) FROM UserCourseRating ucr
+		JOIN Course c ON c.id = ucr.courseId
+		WHERE c.tenantId = :tenantId
+		AND ucr.userId IN :userIds
+		AND (:courseId IS NULL OR ucr.courseId = :courseId)
+		AND (:attributeId IS NULL OR ucr.attributeId = :attributeId)
+		""")
+	Page<UserCourseRating> findByTenantIdAndUserIdsAndFilters(
+		@Param("tenantId") Long tenantId,
+		@Param("userIds") List<String> userIds,
+		@Param("courseId") Long courseId,
+		@Param("attributeId") Long attributeId,
+		Pageable pageable);
+
 	List<UserCourseRating> findByAttributeId(Long attributeId);
 
 	List<UserCourseRating> findByCourseId(Long courseId);

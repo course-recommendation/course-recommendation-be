@@ -10,8 +10,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateRatingRequest {
-	private String userId;
+	private String userEmail;
 	private Long courseId;
-	private Long attributeId;
+	private String attributeName;
 	private Integer score;
 }

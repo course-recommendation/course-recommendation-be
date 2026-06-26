@@ -89,7 +89,7 @@ public class DiscussService {
 
 	@Transactional(readOnly = true)
 	public List<PostCommentDetail> findPostCommentsByPostId(Long postId) {
-		var postComments = postCommentRepository.findByPostId(postId);
+		var postComments = postCommentRepository.findByPostIdOrderByIdDesc(postId);
 		var userIds = postComments.stream().map(PostComment::getUserId).toList();
 		var userIdToUser = userService.getUserIdToUserMapByUserIds(userIds);
 		return postComments.stream()

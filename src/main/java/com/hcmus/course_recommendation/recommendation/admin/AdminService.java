@@ -337,8 +337,8 @@ public class AdminService {
 	// ─── Ratings ──────────────────────────────────────────────────────────────
 
 	@Transactional(readOnly = true)
-	public PageResponse<AdminRatingRow> getRatings(Long tenantId, Pageable pageable, String userId, String courseCode,
-		String attributeName) {
+	public PageResponse<AdminRatingRow> getRatings(Long tenantId, Pageable pageable, String userEmail,
+		String courseCode, String attributeName) {
 		Long courseIdFilter = null;
 		if (courseCode != null && !courseCode.isBlank()) {
 			courseIdFilter = courseRepository.findByCodeAndTenantId(courseCode, tenantId)
@@ -350,17 +350,38 @@ public class AdminService {
 				.map(Attribute::getId).orElse(-1L);
 		}
 
-		Page<UserCourseRating> page = ratingRepository.findByTenantIdAndFilters(tenantId,
-			userId != null && !userId.isBlank() ? userId : null,
-			courseIdFilter, attributeIdFilter, pageable);
+		Page<UserCourseRating> page;
+		if (userEmail != null && !userEmail.isBlank()) {
+			String emailPattern = userEmail.toLowerCase();
+			List<String> matchingUserIds = userRepository.findAll(
+				(Specification<User>) (root, query, cb) -> cb.and(
+					cb.equal(root.get("tenantId"), tenantId),
+					cb.like(cb.lower(root.get("email")), "%" + emailPattern + "%")))
+				.stream().map(User::getId).toList();
+			if (matchingUserIds.isEmpty()) {
+				return PageResponse.<AdminRatingRow>builder()
+					.content(List.of()).totalElements(0).totalPages(0)
+					.page(pageable.getPageNumber()).size(pageable.getPageSize()).build();
+			}
+			page = ratingRepository.findByTenantIdAndUserIdsAndFilters(tenantId, matchingUserIds,
+				courseIdFilter, attributeIdFilter, pageable);
+		} else {
+			page = ratingRepository.findByTenantIdAndFilters(tenantId, null, courseIdFilter, attributeIdFilter,
+				pageable);
+		}
 
 		Map<Long, String> courseIdToCode = courseRepository.findByTenantId(tenantId).stream()
 			.collect(Collectors.toMap(Course::getId, Course::getCode));
 		Map<Long, String> attrIdToName = attributeRepository.findByTenantId(tenantId).stream()
 			.collect(Collectors.toMap(Attribute::getId, Attribute::getValue));
+		List<String> userIds = page.getContent().stream().map(UserCourseRating::getUserId).distinct().toList();
+		Map<String, String> userIdToEmail = userRepository.findByIdIn(userIds).stream()
+			.collect(Collectors.toMap(User::getId, User::getEmail));
 
 		return PageResponse.from(page.map(r -> new AdminRatingRow(
-			r.getId(), r.getUserId(), r.getCourseId(),
+			r.getId(),
+			userIdToEmail.getOrDefault(r.getUserId(), r.getUserId()),
+			r.getCourseId(),
 			courseIdToCode.getOrDefault(r.getCourseId(), String.valueOf(r.getCourseId())),
 			r.getAttributeId(),
 			attrIdToName.getOrDefault(r.getAttributeId(), String.valueOf(r.getAttributeId())),
@@ -372,24 +393,22 @@ public class AdminService {
 		courseRepository.findById(request.getCourseId())
 			.filter(c -> tenantId.equals(c.getTenantId()))
 			.orElseThrow(() -> new NotFoundException(GlobalErrorCode.NOT_FOUND));
-		attributeRepository.findById(request.getAttributeId())
-			.filter(a -> tenantId.equals(a.getTenantId()))
+		Attribute attr = attributeRepository.findByValueAndTenantId(request.getAttributeName(), tenantId)
 			.orElseThrow(() -> new NotFoundException(GlobalErrorCode.NOT_FOUND));
-		userRepository.findById(request.getUserId())
-			.filter(u -> tenantId.equals(u.getTenantId()))
+		User user = userRepository.findByEmailAndTenantId(request.getUserEmail(), tenantId)
 			.orElseThrow(() -> new NotFoundException(GlobalErrorCode.USER_NOT_FOUND));
 
 		var existing = ratingRepository.findByUserIdAndCourseIdAndAttributeId(
-			request.getUserId(), request.getCourseId(), request.getAttributeId());
+			user.getId(), request.getCourseId(), attr.getId());
 		if (existing.isPresent()) {
 			UserCourseRating rating = existing.get();
 			rating.setScore(request.getScore());
 			ratingRepository.save(rating);
 		} else {
 			ratingRepository.save(UserCourseRating.builder()
-				.userId(request.getUserId())
+				.userId(user.getId())
 				.courseId(request.getCourseId())
-				.attributeId(request.getAttributeId())
+				.attributeId(attr.getId())
 				.score(request.getScore())
 				.build());
 		}
@@ -429,30 +448,29 @@ public class AdminService {
 				Row row = sheet.getRow(i);
 				if (row == null)
 					continue;
-				String userId = getCellAsString(row.getCell(0));
+				String userEmail = getCellAsString(row.getCell(0));
 				String courseCode = getCellAsString(row.getCell(1));
 				String attributeName = getCellAsString(row.getCell(2));
 				Integer score = getCellAsInteger(row.getCell(3));
-				if (userId == null || courseCode == null || attributeName == null || score == null)
+				if (userEmail == null || courseCode == null || attributeName == null || score == null)
 					continue;
 
 				Course course = courseRepository.findByCodeAndTenantId(courseCode, tenantId)
 					.orElseThrow(() -> new BadRequestException(GlobalErrorCode.NOT_FOUND));
 				Attribute attr = attributeRepository.findByValueAndTenantId(attributeName, tenantId)
 					.orElseThrow(() -> new BadRequestException(GlobalErrorCode.NOT_FOUND));
-				userRepository.findById(userId)
-					.filter(u -> tenantId.equals(u.getTenantId()))
+				User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
 					.orElseThrow(() -> new BadRequestException(GlobalErrorCode.USER_NOT_FOUND));
 
 				var existing = ratingRepository.findByUserIdAndCourseIdAndAttributeId(
-					userId, course.getId(), attr.getId());
+					user.getId(), course.getId(), attr.getId());
 				if (existing.isPresent()) {
 					UserCourseRating rating = existing.get();
 					rating.setScore(score);
 					ratingRepository.save(rating);
 				} else {
 					ratingRepository.save(UserCourseRating.builder()
-						.userId(userId)
+						.userId(user.getId())
 						.courseId(course.getId())
 						.attributeId(attr.getId())
 						.score(score)
