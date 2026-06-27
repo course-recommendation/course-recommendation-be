@@ -34,7 +34,9 @@ import com.hcmus.course_recommendation.recommendation.admin.dto.UpsertAttributeR
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpsertCourseRequest;
 import com.hcmus.course_recommendation.recommendation.fs.service.FSService;
 import com.hcmus.course_recommendation.recommendation.tri_rank.service.TriRankService;
+import com.hcmus.course_recommendation.tenant.Tenant;
 import com.hcmus.course_recommendation.tenant.TenantId;
+import com.hcmus.course_recommendation.tenant.TenantRepository;
 import com.hcmus.course_recommendation.user.Role;
 import com.hcmus.course_recommendation.user.UserService;
 
@@ -49,14 +51,23 @@ public class AdminController {
 	private final TriRankService triRankService;
 	private final FSService fSService;
 	private final AdminService adminService;
+	private final TenantRepository tenantRepository;
 
 	// ─── Tenant / Auth ────────────────────────────────────────────────────────
 
 	@GetMapping("/tenant-ready")
 	public RestResponse<Boolean> isTenantReady(@TenantId Long tenantId) {
-		return RestResponse.make(
-			adminService.getCourses(tenantId, Pageable.ofSize(1), null, null, null).totalElements() > 0
-				&& adminService.getAttributes(tenantId, Pageable.ofSize(1), null, null).totalElements() > 0);
+		Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
+		return RestResponse.make(tenant != null && tenant.isSystemEnabled());
+	}
+
+	@PreAuthorize("hasRole('ADMIN')")
+	@PutMapping("/system-enabled")
+	public RestResponse<Void> setSystemEnabled(@TenantId Long tenantId, @RequestBody java.util.Map<String, Boolean> body) {
+		Tenant tenant = tenantRepository.findById(tenantId).orElseThrow();
+		tenant.setSystemEnabled(Boolean.TRUE.equals(body.get("enabled")));
+		tenantRepository.save(tenant);
+		return RestResponse.make();
 	}
 
 	@GetMapping("/is-admin")
@@ -103,9 +114,25 @@ public class AdminController {
 		return RestResponse.make(adminService.getUsers(tenantId, pageable, email, fullName, roles));
 	}
 
+	@GetMapping("/{tenantId}/users")
+	public RestResponse<PageResponse<AdminUserRow>> getUsersByTenant(
+		@PathVariable Long tenantId,
+		@PageableDefault(size = 10) Pageable pageable,
+		@RequestParam(required = false) String email,
+		@RequestParam(required = false) String fullName,
+		@RequestParam(required = false) List<Role> roles) {
+		return RestResponse.make(adminService.getUsers(tenantId, pageable, email, fullName, roles));
+	}
+
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping("/users")
 	public RestResponse<Void> createUser(@TenantId Long tenantId, @RequestBody CreateAdminUserRequest request) {
+		adminService.createUser(tenantId, request);
+		return RestResponse.make();
+	}
+
+	@PostMapping("/{tenantId}/users")
+	public RestResponse<Void> createUserForTenant(@PathVariable Long tenantId, @RequestBody CreateAdminUserRequest request) {
 		adminService.createUser(tenantId, request);
 		return RestResponse.make();
 	}

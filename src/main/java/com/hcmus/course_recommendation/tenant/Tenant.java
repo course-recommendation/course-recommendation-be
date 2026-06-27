@@ -31,4 +31,6 @@ public class Tenant {
 
 	@Enumerated(EnumType.STRING)
 	private Algorithm algorithm;
+
+	private boolean systemEnabled;
 }
