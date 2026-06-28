@@ -1,6 +1,8 @@
 package com.hcmus.course_recommendation.discuss.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
@@ -15,10 +17,16 @@ import com.hcmus.course_recommendation.discuss.dto.CreatePostRequest;
 import com.hcmus.course_recommendation.discuss.dto.FindPostDetailsRequest;
 import com.hcmus.course_recommendation.discuss.dto.PostCommentDetail;
 import com.hcmus.course_recommendation.discuss.dto.PostDetail;
+import com.hcmus.course_recommendation.discuss.dto.VoteRequest;
 import com.hcmus.course_recommendation.discuss.model.Post;
 import com.hcmus.course_recommendation.discuss.model.PostComment;
+import com.hcmus.course_recommendation.discuss.model.PostCommentVote;
+import com.hcmus.course_recommendation.discuss.model.PostVote;
+import com.hcmus.course_recommendation.discuss.model.VoteType;
 import com.hcmus.course_recommendation.discuss.repository.PostCommentRepository;
+import com.hcmus.course_recommendation.discuss.repository.PostCommentVoteRepository;
 import com.hcmus.course_recommendation.discuss.repository.PostRepository;
+import com.hcmus.course_recommendation.discuss.repository.PostVoteRepository;
 import com.hcmus.course_recommendation.user.UserService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,6 +39,8 @@ public class DiscussService {
 	private final PostCommentRepository postCommentRepository;
 	private final CourseService courseService;
 	private final CourseRepository courseRepository;
+	private final PostVoteRepository postVoteRepository;
+	private final PostCommentVoteRepository postCommentVoteRepository;
 
 	@Transactional
 	public void createPost(CreatePostRequest request) {
@@ -44,7 +54,7 @@ public class DiscussService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<PostDetail> findPostDetails(FindPostDetailsRequest request, Sort sort) {
+	public List<PostDetail> findPostDetails(FindPostDetailsRequest request, Sort sort, String userId) {
 		List<Course> courses;
 		if (request.getCourseIdsRequest().isFetchAll()) {
 			courses = courseRepository.findByAlgorithmAndTenantId(request.getAlgorithm(), request.getTenantId());
@@ -55,25 +65,47 @@ public class DiscussService {
 
 		var courseIds = courses.stream().map(Course::getCode).toList();
 
-		var posts = postRepository.findByAlgorithmAndTenantIdAndCourseCodeIn(request.getAlgorithm(),
-			request.getTenantId(), courseIds, sort);
+		var authorIdsRequest = request.getAuthorIdsRequest();
+		var filterByAuthor = authorIdsRequest != null
+			&& !authorIdsRequest.isFetchAll()
+			&& authorIdsRequest.getData() != null
+			&& !authorIdsRequest.getData().isEmpty();
 
-		return toPostDetails(request.getAlgorithm(), request.getTenantId(), posts);
+		var posts = filterByAuthor
+			? postRepository.findByAlgorithmAndTenantIdAndCourseCodeInAndUserIdIn(
+			request.getAlgorithm(), request.getTenantId(), courseIds, authorIdsRequest.getData(), sort)
+			: postRepository.findByAlgorithmAndTenantIdAndCourseCodeIn(
+			request.getAlgorithm(), request.getTenantId(), courseIds, sort);
+
+		return toPostDetails(request.getAlgorithm(), request.getTenantId(), posts, userId);
 	}
 
 	@Transactional(readOnly = true)
-	public List<PostDetail> toPostDetails(Algorithm algorithm, Long tenantId, List<Post> posts) {
+	public List<PostDetail> toPostDetails(Algorithm algorithm, Long tenantId, List<Post> posts, String userId) {
 		var userIds = posts.stream().map(Post::getUserId).toList();
 		var userIdToUser = userService.getUserIdToUserMapByUserIds(userIds);
 
 		var courseIds = posts.stream().map(Post::getCourseCode).toList();
 		var courseIdToCourse = courseService.getCourseIdToCourseMapByCourseIds(algorithm, tenantId, courseIds);
 
+		var postIds = posts.stream().map(Post::getId).toList();
+		var votes = postVoteRepository.findByPostIdIn(postIds);
+
+		Map<Long, Integer> voteCountByPostId = votes.stream()
+			.collect(Collectors.groupingBy(PostVote::getPostId,
+				Collectors.summingInt(v -> v.getVoteType() == VoteType.UPVOTE ? 1 : -1)));
+
+		Map<Long, VoteType> userVoteByPostId = votes.stream()
+			.filter(v -> v.getUserId().equals(userId))
+			.collect(Collectors.toMap(PostVote::getPostId, PostVote::getVoteType));
+
 		return posts.stream()
 			.map(post -> PostDetail.builder()
 				.post(post)
 				.user(userIdToUser.get(post.getUserId()))
 				.course(courseIdToCourse.get(post.getCourseCode()))
+				.voteCount(voteCountByPostId.getOrDefault(post.getId(), 0))
+				.userVote(userVoteByPostId.get(post.getId()))
 				.build())
 			.toList();
 	}
@@ -82,21 +114,95 @@ public class DiscussService {
 	public void createPostComment(CreatePostCommentRequest request) {
 		postCommentRepository.save(PostComment.builder()
 			.postId(request.getPostId())
+			.parentCommentId(request.getParentCommentId())
 			.content(request.getContent())
 			.userId(request.getUserId())
 			.build());
 	}
 
 	@Transactional(readOnly = true)
-	public List<PostCommentDetail> findPostCommentsByPostId(Long postId) {
-		var postComments = postCommentRepository.findByPostIdOrderByIdDesc(postId);
-		var userIds = postComments.stream().map(PostComment::getUserId).toList();
+	public List<PostCommentDetail> findPostCommentsByPostId(Long postId, String userId) {
+		var allComments = postCommentRepository.findByPostIdOrderByIdDesc(postId);
+
+		var commentIds = allComments.stream().map(PostComment::getId).toList();
+		var votes = postCommentVoteRepository.findByCommentIdIn(commentIds);
+
+		Map<Long, Integer> voteCountByCommentId = votes.stream()
+			.collect(Collectors.groupingBy(PostCommentVote::getCommentId,
+				Collectors.summingInt(v -> v.getVoteType() == VoteType.UPVOTE ? 1 : -1)));
+
+		Map<Long, VoteType> userVoteByCommentId = votes.stream()
+			.filter(v -> v.getUserId().equals(userId))
+			.collect(Collectors.toMap(PostCommentVote::getCommentId, PostCommentVote::getVoteType));
+
+		var userIds = allComments.stream().map(PostComment::getUserId).toList();
 		var userIdToUser = userService.getUserIdToUserMapByUserIds(userIds);
-		return postComments.stream()
-			.map(postComment -> PostCommentDetail.builder()
-				.postComment(postComment)
-				.user(userIdToUser.get(postComment.getUserId()))
-				.build())
+
+		Map<Long, List<PostComment>> repliesByParentId = allComments.stream()
+			.filter(c -> c.getParentCommentId() != null)
+			.collect(Collectors.groupingBy(PostComment::getParentCommentId));
+
+		return allComments.stream()
+			.filter(c -> c.getParentCommentId() == null)
+			.map(comment -> {
+				var nestedReplies = repliesByParentId.getOrDefault(comment.getId(), List.of()).stream()
+					.map(reply -> PostCommentDetail.builder()
+						.postComment(reply)
+						.user(userIdToUser.get(reply.getUserId()))
+						.voteCount(voteCountByCommentId.getOrDefault(reply.getId(), 0))
+						.userVote(userVoteByCommentId.get(reply.getId()))
+						.replies(List.of())
+						.build())
+					.toList();
+
+				return PostCommentDetail.builder()
+					.postComment(comment)
+					.user(userIdToUser.get(comment.getUserId()))
+					.voteCount(voteCountByCommentId.getOrDefault(comment.getId(), 0))
+					.userVote(userVoteByCommentId.get(comment.getId()))
+					.replies(nestedReplies)
+					.build();
+			})
 			.toList();
+	}
+
+	@Transactional
+	public void votePost(Long postId, String userId, VoteRequest request) {
+		var existing = postVoteRepository.findByPostIdAndUserId(postId, userId);
+		if (existing.isPresent()) {
+			existing.get().setVoteType(request.getVoteType());
+			postVoteRepository.save(existing.get());
+		} else {
+			postVoteRepository.save(PostVote.builder()
+				.postId(postId)
+				.userId(userId)
+				.voteType(request.getVoteType())
+				.build());
+		}
+	}
+
+	@Transactional
+	public void removePostVote(Long postId, String userId) {
+		postVoteRepository.deleteByPostIdAndUserId(postId, userId);
+	}
+
+	@Transactional
+	public void votePostComment(Long commentId, String userId, VoteRequest request) {
+		var existing = postCommentVoteRepository.findByCommentIdAndUserId(commentId, userId);
+		if (existing.isPresent()) {
+			existing.get().setVoteType(request.getVoteType());
+			postCommentVoteRepository.save(existing.get());
+		} else {
+			postCommentVoteRepository.save(PostCommentVote.builder()
+				.commentId(commentId)
+				.userId(userId)
+				.voteType(request.getVoteType())
+				.build());
+		}
+	}
+
+	@Transactional
+	public void removePostCommentVote(Long commentId, String userId) {
+		postCommentVoteRepository.deleteByCommentIdAndUserId(commentId, userId);
 	}
 }

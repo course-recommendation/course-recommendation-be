@@ -12,4 +12,6 @@ public interface UserRepository extends JpaRepository<User, String>, JpaSpecific
 	Optional<User> findByEmailAndTenantId(String email, Long tenantId);
 
 	List<User> findByIdIn(List<String> ids);
+
+	List<User> findByTenantIdAndFullNameContainingIgnoreCase(Long tenantId, String fullName);
 }

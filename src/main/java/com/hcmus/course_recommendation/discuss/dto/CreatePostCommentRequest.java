@@ -19,4 +19,5 @@ public class CreatePostCommentRequest {
 	@JsonIgnore
 	private Long postId;
 	private String content;
+	private Long parentCommentId;
 }

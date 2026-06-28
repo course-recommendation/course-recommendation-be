@@ -18,6 +18,7 @@ import lombok.Setter;
 public class FindPostDetailsRequest {
 	private Algorithm algorithm;
 	private ListRequest<String> courseIdsRequest = ListRequest.defaultInstance();
+	private ListRequest<String> authorIdsRequest = ListRequest.defaultInstance();
 	@JsonIgnore
 	private Long tenantId;
 }

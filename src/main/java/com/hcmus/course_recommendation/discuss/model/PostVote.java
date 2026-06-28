@@ -1,13 +1,12 @@
 package com.hcmus.course_recommendation.discuss.model;
 
-import java.time.Instant;
-
-import org.hibernate.annotations.CreationTimestamp;
-
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,20 +14,18 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
+@Table(name = "post_vote")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PostComment {
+public class PostVote {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	private Long postId;
-	private Long parentCommentId;
-	private String courseId;
 	private String userId;
-	private String content;
-	@CreationTimestamp
-	private Instant createdAt;
+	@Enumerated(EnumType.STRING)
+	private VoteType voteType;
 }

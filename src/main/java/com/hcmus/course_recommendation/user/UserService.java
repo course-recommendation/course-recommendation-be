@@ -48,6 +48,11 @@ public class UserService {
 			.build());
 	}
 
+	@Transactional(readOnly = true)
+	public List<User> searchUsers(String search, Long tenantId) {
+		return userRepository.findByTenantIdAndFullNameContainingIgnoreCase(tenantId, search);
+	}
+
 	@Transactional
 	public User updateProfile(String userId, String fullName) {
 		var user = userRepository.findById(userId)
