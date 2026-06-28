@@ -56,6 +56,6 @@ public class UserController {
 
 	@PutMapping("/me/profile")
 	public RestResponse<User> updateProfile(Principal principal, @RequestBody UpdateUserProfileRequest request) {
-		return RestResponse.make(userService.updateProfile(principal.getName(), request.getFullName()));
+		return RestResponse.make(userService.updateProfile(principal.getName(), request.getFullName(), request.getEmail()));
 	}
 }

@@ -1,3 +1,2 @@
 domain:
-  frontendUrl: ${FRONTEND_URL}
   aiUrl: ${AI_URL}

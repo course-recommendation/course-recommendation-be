@@ -11,4 +11,5 @@ import lombok.Setter;
 @NoArgsConstructor
 public class UpdateUserProfileRequest {
 	private String fullName;
+	private String email;
 }

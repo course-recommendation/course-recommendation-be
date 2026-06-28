@@ -7,11 +7,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.hcmus.course_recommendation.auth.properties.DomainProperties;
 import com.hcmus.course_recommendation.common.exception.BadRequestException;
 import com.hcmus.course_recommendation.common.exception.GlobalErrorCode;
 import com.hcmus.course_recommendation.user.UserRepository;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -21,10 +21,9 @@ public class PasswordResetService {
 	private final PasswordResetRepository passwordResetRepository;
 	private final EmailService emailService;
 	private final PasswordEncoder passwordEncoder;
-	private final DomainProperties domainProperties;
 
 	@Transactional
-	public void requestReset(String email, Long tenantId) {
+	public void requestReset(String email, Long tenantId, HttpServletRequest servletRequest) {
 		var user = userRepository.findByEmailAndTenantId(email, tenantId)
 			.orElseThrow(() -> new BadRequestException(GlobalErrorCode.EMAIL_NOT_FOUND));
 
@@ -35,7 +34,8 @@ public class PasswordResetService {
 			.expires(Instant.now().plusSeconds(3600))
 			.build());
 
-		String resetLink = domainProperties.frontendUrl() + "/reset-password?token=" + token;
+		String frontendUrl = servletRequest.getHeader("Origin");
+		String resetLink = frontendUrl + "/reset-password?token=" + token;
 		emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
 	}
 

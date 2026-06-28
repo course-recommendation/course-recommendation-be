@@ -54,10 +54,18 @@ public class UserService {
 	}
 
 	@Transactional
-	public User updateProfile(String userId, String fullName) {
+	public User updateProfile(String userId, String fullName, String email) {
 		var user = userRepository.findById(userId)
 			.orElseThrow(() -> new com.hcmus.course_recommendation.common.exception.NotFoundException(
 				com.hcmus.course_recommendation.common.exception.GlobalErrorCode.USER_NOT_FOUND));
-		return userRepository.save(user.toBuilder().fullName(fullName).build());
+		if (email != null && !email.equals(user.getEmail())) {
+			userRepository.findByEmailAndTenantId(email, user.getTenantId()).ifPresent(existing -> {
+				throw new com.hcmus.course_recommendation.common.exception.BadRequestException(
+					com.hcmus.course_recommendation.common.exception.GlobalErrorCode.EMAIL_DUPLICATED);
+			});
+		}
+		var builder = user.toBuilder().fullName(fullName);
+		if (email != null) builder.email(email);
+		return userRepository.save(builder.build());
 	}
 }

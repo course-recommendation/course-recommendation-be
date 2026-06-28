@@ -9,6 +9,7 @@ import com.hcmus.course_recommendation.auth.dto.PasswordResetRequestDto;
 import com.hcmus.course_recommendation.common.RestResponse;
 import com.hcmus.course_recommendation.tenant.TenantId;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -19,9 +20,10 @@ public class PasswordResetController {
 	@PostMapping("/auth/password-reset/request")
 	public RestResponse<Void> requestReset(
 		@RequestBody PasswordResetRequestDto request,
-		@TenantId Long tenantId
+		@TenantId Long tenantId,
+		HttpServletRequest servletRequest
 	) {
-		passwordResetService.requestReset(request.getEmail(), tenantId);
+		passwordResetService.requestReset(request.getEmail(), tenantId, servletRequest);
 		return RestResponse.make();
 	}
 
