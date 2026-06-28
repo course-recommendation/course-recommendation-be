@@ -14,7 +14,6 @@ import com.hcmus.course_recommendation.course.repository.UserCourseStatusReposit
 import com.hcmus.course_recommendation.recommendation.admin.RetrainService;
 import com.hcmus.course_recommendation.recommendation.model.Attribute;
 import com.hcmus.course_recommendation.user.User;
-import com.hcmus.course_recommendation.user.UserFirstLoginRepository;
 import com.hcmus.course_recommendation.recommendation.fs.repository.RecommendationResultRepository;
 import com.hcmus.course_recommendation.recommendation.fs.repository.UserPreferenceRepository;
 
@@ -28,7 +27,6 @@ public class ResourceDeletedEventListener {
 
 	private final UserCourseRatingRepository ratingRepository;
 	private final UserCourseStatusRepository statusRepository;
-	private final UserFirstLoginRepository firstLoginRepository;
 	private final UserPreferenceRepository preferenceRepository;
 	private final RecommendationResultRepository recommendationResultRepository;
 	private final FsCourseSentimentRepository fsCourseSentimentRepository;
@@ -58,7 +56,6 @@ public class ResourceDeletedEventListener {
 		User user = event.getData();
 		ratingRepository.deleteByUserId(user.getId());
 		statusRepository.deleteByUserId(user.getId());
-		firstLoginRepository.deleteByUserId(user.getId());
 		preferenceRepository.deleteByUserId(user.getId());
 		recommendationResultRepository.deleteByUserId(user.getId());
 	}

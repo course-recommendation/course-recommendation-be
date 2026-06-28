@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.hcmus.course_recommendation.common.RestResponse;
 import com.hcmus.course_recommendation.common.exception.GlobalErrorCode;
 import com.hcmus.course_recommendation.common.exception.NotFoundException;
-import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.tenant.TenantId;
 import com.hcmus.course_recommendation.user.dto.UpdateUserProfileRequest;
 
@@ -39,19 +38,6 @@ public class UserController {
 			throw new NotFoundException(GlobalErrorCode.USER_NOT_FOUND);
 		}
 		return RestResponse.make(user);
-	}
-
-	@PutMapping("/me/done-first-login")
-	public RestResponse<Void> doneFirstLogin(Principal principal, @RequestParam Algorithm algorithm,
-		@TenantId Long tenantId) {
-		userService.doneFirstLogin(principal.getName(), algorithm, tenantId);
-		return RestResponse.make();
-	}
-
-	@GetMapping("/me/first-login")
-	public RestResponse<Boolean> isFirstLogin(Principal principal, @RequestParam Algorithm algorithm,
-		@TenantId Long tenantId) {
-		return RestResponse.make(userService.isFirstLogin(principal.getName(), algorithm, tenantId));
 	}
 
 	@PutMapping("/me/profile")
