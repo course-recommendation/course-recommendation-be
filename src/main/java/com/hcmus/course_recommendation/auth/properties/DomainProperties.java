@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "domain")
 public record DomainProperties(
+	String frontendUrl,
 	String aiUrl
 ) {
 }

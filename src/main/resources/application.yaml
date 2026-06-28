@@ -7,6 +7,7 @@ spring:
       - classpath:jwt.yaml
       - classpath:domain.yaml
       - classpath:datasource.yaml
+      - classpath:mail.yaml
 
 server:
   port: 8082

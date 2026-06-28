@@ -4,12 +4,14 @@ import java.security.Principal;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hcmus.course_recommendation.common.RestResponse;
 import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.tenant.TenantId;
+import com.hcmus.course_recommendation.user.dto.UpdateUserProfileRequest;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,5 +32,10 @@ public class UserController {
 	public RestResponse<Boolean> isFirstLogin(Principal principal, @RequestParam Algorithm algorithm,
 		@TenantId Long tenantId) {
 		return RestResponse.make(userService.isFirstLogin(principal.getName(), algorithm, tenantId));
+	}
+
+	@PutMapping("/me/profile")
+	public RestResponse<User> updateProfile(Principal principal, @RequestBody UpdateUserProfileRequest request) {
+		return RestResponse.make(userService.updateProfile(principal.getName(), request.getFullName()));
 	}
 }

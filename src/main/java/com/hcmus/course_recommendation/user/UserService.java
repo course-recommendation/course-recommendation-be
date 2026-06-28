@@ -47,4 +47,12 @@ public class UserService {
 			.tenantId(tenantId)
 			.build());
 	}
+
+	@Transactional
+	public User updateProfile(String userId, String fullName) {
+		var user = userRepository.findById(userId)
+			.orElseThrow(() -> new com.hcmus.course_recommendation.common.exception.NotFoundException(
+				com.hcmus.course_recommendation.common.exception.GlobalErrorCode.USER_NOT_FOUND));
+		return userRepository.save(user.toBuilder().fullName(fullName).build());
+	}
 }
