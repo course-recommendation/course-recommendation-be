@@ -1,5 +1,7 @@
 package com.hcmus.course_recommendation.tenant;
 
+import java.net.URI;
+
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -28,13 +30,28 @@ public class TenantIdArgumentResolver implements HandlerMethodArgumentResolver {
 	public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
 		NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
 		HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-		if (request == null || request.getServerName() == null || request.getServerName().isBlank()) {
+		if (request == null) {
 			throw new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND);
 		}
 
-		String serverName = request.getServerName();
-		return tenantRepository.findByName(serverName)
+		String origin = request.getHeader("Origin");
+		if (origin == null || origin.isBlank()) {
+			throw new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND);
+		}
+
+		String host;
+		try {
+			host = URI.create(origin).getHost();
+		} catch (IllegalArgumentException e) {
+			throw new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND);
+		}
+
+		if (host == null || host.isBlank()) {
+			throw new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND);
+		}
+
+		return tenantRepository.findByName(host)
 			.map(Tenant::getId)
-			.orElseThrow(() -> new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND, serverName));
+			.orElseThrow(() -> new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND, host));
 	}
 }
