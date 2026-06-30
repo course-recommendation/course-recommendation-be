@@ -230,6 +230,11 @@ public class CourseService {
 		var oldUserCourseRating = userCourseRatingRepository.findByUserIdAndCourseIdAndAttributeId(userId, courseId,
 			attributeId);
 
+		if (score == null || score == 0) {
+			oldUserCourseRating.ifPresent(r -> userCourseRatingRepository.deleteById(r.getId()));
+			return;
+		}
+
 		if (oldUserCourseRating.isEmpty()) {
 			userCourseRatingRepository.save(UserCourseRating.builder()
 				.courseId(courseId)
