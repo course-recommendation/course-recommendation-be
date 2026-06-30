@@ -9,6 +9,9 @@ spring:
       - classpath:datasource.yaml
       - classpath:mail.yaml
 
+  flyway:
+    enabled: false
+
 server:
   port: 8082
 

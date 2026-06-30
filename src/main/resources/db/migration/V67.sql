@@ -1,8 +1,0 @@
-CREATE TABLE password_reset (
-    id VARCHAR(36) NOT NULL,
-    user_id VARCHAR(36) NOT NULL,
-    token VARCHAR(255) NOT NULL UNIQUE,
-    expires DATETIME NOT NULL,
-    used BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (id)
-);
