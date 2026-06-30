@@ -14,8 +14,9 @@ public class EmailService {
 	public void sendPasswordResetEmail(String to, String resetLink) {
 		SimpleMailMessage message = new SimpleMailMessage();
 		message.setTo(to);
-		message.setSubject("Đặt lại mật khẩu CourseHub");
-		message.setText("Nhấn vào liên kết sau để đặt lại mật khẩu của bạn:\n\n" + resetLink + "\n\nLink sẽ hết hạn sau 1 giờ.");
+		message.setSubject("Đặt lại mật khẩu CoursePilot");
+		message.setText(
+			"Nhấn vào liên kết sau để đặt lại mật khẩu của bạn:\n\n" + resetLink + "\n\nLink sẽ hết hạn sau 1 giờ.");
 		mailSender.send(message);
 	}
 }
