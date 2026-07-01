@@ -63,7 +63,8 @@ public class AdminController {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/system-enabled")
-	public RestResponse<Void> setSystemEnabled(@TenantId Long tenantId, @RequestBody java.util.Map<String, Boolean> body) {
+	public RestResponse<Void> setSystemEnabled(@TenantId Long tenantId,
+		@RequestBody java.util.Map<String, Boolean> body) {
 		Tenant tenant = tenantRepository.findById(tenantId).orElseThrow();
 		tenant.setSystemEnabled(Boolean.TRUE.equals(body.get("enabled")));
 		tenantRepository.save(tenant);
@@ -132,7 +133,8 @@ public class AdminController {
 	}
 
 	@PostMapping("/{tenantId}/users")
-	public RestResponse<Void> createUserForTenant(@PathVariable Long tenantId, @RequestBody CreateAdminUserRequest request) {
+	public RestResponse<Void> createUserForTenant(@PathVariable Long tenantId,
+		@RequestBody CreateAdminUserRequest request) {
 		adminService.createUser(tenantId, request);
 		return RestResponse.make();
 	}
@@ -313,6 +315,12 @@ public class AdminController {
 	public RestResponse<Void> importRatings(@TenantId Long tenantId,
 		@RequestParam("file") MultipartFile file) throws Exception {
 		adminService.importRatings(tenantId, file);
+		return RestResponse.make();
+	}
+
+	@PostMapping("/generate-random-user-course-ratings")
+	public RestResponse<Void> generateRandomUserCourseRatings(@RequestParam Long tenantId) {
+		adminService.generateRandomUserCourseRatings(tenantId);
 		return RestResponse.make();
 	}
 }

@@ -2,10 +2,12 @@ package com.hcmus.course_recommendation.recommendation.admin;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -556,6 +558,66 @@ public class AdminService {
 					.attributeId(attr.getId())
 					.score(row.score())
 					.build());
+			}
+		}
+		ratingRepository.saveAll(ratingsToSave.values());
+	}
+
+	private static final int RANDOM_RATING_COURSES_PER_USER = 20;
+	private static final int RANDOM_RATING_MIN_SCORE = 1;
+	private static final int RANDOM_RATING_MAX_SCORE = 5;
+	private static final double RATING_NOISE_SIGMA = 0.8;
+
+	@Transactional
+	public void generateRandomUserCourseRatings(Long tenantId) {
+		List<User> users = userRepository.findByTenantId(tenantId);
+		List<Course> courses = courseRepository.findByTenantId(tenantId);
+		List<Attribute> attributes = attributeRepository.findByTenantId(tenantId);
+		if (users.isEmpty() || courses.isEmpty() || attributes.isEmpty())
+			return;
+
+		List<String> userIds = users.stream().map(User::getId).toList();
+		List<Long> courseIds = courses.stream().map(Course::getId).toList();
+		List<Long> attributeIds = attributes.stream().map(Attribute::getId).toList();
+		Map<String, UserCourseRating> existingByKey = ratingRepository
+			.findByUserIdInAndCourseIdInAndAttributeIdIn(userIds, courseIds, attributeIds).stream()
+			.collect(Collectors.toMap(r -> r.getUserId() + ":" + r.getCourseId() + ":" + r.getAttributeId(), r -> r));
+
+		Random random = new Random();
+		// Stable per-(course, attribute) target so its average settles near that target
+		// instead of regressing to 3 as more ratings are generated.
+		Map<String, Double> targetByCourseAttribute = new LinkedHashMap<>();
+		for (Course course : courses) {
+			for (Attribute attribute : attributes) {
+				targetByCourseAttribute.put(course.getId() + ":" + attribute.getId(), 1 + random.nextDouble() * 4);
+			}
+		}
+
+		Map<String, UserCourseRating> ratingsToSave = new LinkedHashMap<>();
+		for (User user : users) {
+			List<Course> shuffledCourses = new ArrayList<>(courses);
+			Collections.shuffle(shuffledCourses, random);
+			int courseCount = Math.min(RANDOM_RATING_COURSES_PER_USER, shuffledCourses.size());
+			for (Course course : shuffledCourses.subList(0, courseCount)) {
+				for (Attribute attribute : attributes) {
+					double target = targetByCourseAttribute.get(course.getId() + ":" + attribute.getId());
+					double rawScore = target + random.nextGaussian() * RATING_NOISE_SIGMA;
+					int score = (int)Math.max(RANDOM_RATING_MIN_SCORE,
+						Math.min(RANDOM_RATING_MAX_SCORE, Math.round(rawScore)));
+					String key = user.getId() + ":" + course.getId() + ":" + attribute.getId();
+					UserCourseRating existing = existingByKey.get(key);
+					if (existing != null) {
+						existing.setScore(score);
+						ratingsToSave.put(key, existing);
+					} else {
+						ratingsToSave.put(key, UserCourseRating.builder()
+							.userId(user.getId())
+							.courseId(course.getId())
+							.attributeId(attribute.getId())
+							.score(score)
+							.build());
+					}
+				}
 			}
 		}
 		ratingRepository.saveAll(ratingsToSave.values());
