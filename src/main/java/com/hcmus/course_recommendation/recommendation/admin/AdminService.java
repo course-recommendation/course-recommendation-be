@@ -2,8 +2,11 @@ package com.hcmus.course_recommendation.recommendation.admin;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -138,6 +141,8 @@ public class AdminService {
 
 	@Transactional
 	public void importUsers(Long tenantId, MultipartFile file) throws IOException {
+		List<User> usersToSave = new ArrayList<>();
+		Set<String> seenEmails = new HashSet<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
 			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -150,15 +155,21 @@ public class AdminService {
 				String password = getCellAsString(row.getCell(3));
 				if (email == null || password == null)
 					continue;
-				var roles = parseRole(roleStr);
-				var req = new CreateAdminUserRequest(email, password, fullName, roles);
-				try {
-					createUser(tenantId, req);
-				} catch (BadRequestException e) {
+				if (!seenEmails.add(email) || userRepository.findByEmailAndTenantId(email, tenantId).isPresent()) {
 					log.warn("Skipping duplicate email {} on row {}", email, i);
+					continue;
 				}
+				var roles = parseRole(roleStr);
+				usersToSave.add(User.builder()
+					.email(email)
+					.password(passwordEncoder.encode(password))
+					.fullName(fullName)
+					.tenantId(tenantId)
+					.roles(roles)
+					.build());
 			}
 		}
+		userRepository.saveAll(usersToSave);
 	}
 
 	// ─── Attributes ───────────────────────────────────────────────────────────
@@ -220,6 +231,7 @@ public class AdminService {
 
 	@Transactional
 	public void importAttributes(Long tenantId, MultipartFile file) throws IOException {
+		List<Attribute> attributesToSave = new ArrayList<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
 			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -231,8 +243,16 @@ public class AdminService {
 				if (value == null)
 					continue;
 				Algorithm algorithm = parseAlgorithm(algorithmStr);
-				createAttribute(tenantId, new UpsertAttributeRequest(value, algorithm));
+				attributesToSave.add(Attribute.builder()
+					.value(value)
+					.algorithm(algorithm)
+					.tenantId(tenantId)
+					.build());
 			}
+		}
+		if (!attributesToSave.isEmpty()) {
+			attributeRepository.saveAll(attributesToSave);
+			scheduleRetrainAfterCommit(tenantId);
 		}
 	}
 
@@ -302,6 +322,7 @@ public class AdminService {
 
 	@Transactional
 	public void importCourses(Long tenantId, MultipartFile file) throws IOException {
+		List<Course> coursesToSave = new ArrayList<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
 			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -315,8 +336,18 @@ public class AdminService {
 				if (code == null || name == null)
 					continue;
 				Algorithm algorithm = parseAlgorithm(algorithmStr);
-				createCourse(tenantId, new UpsertCourseRequest(code, name, description, algorithm));
+				coursesToSave.add(Course.builder()
+					.code(code)
+					.name(name)
+					.description(description)
+					.algorithm(algorithm)
+					.tenantId(tenantId)
+					.build());
 			}
+		}
+		if (!coursesToSave.isEmpty()) {
+			courseRepository.saveAll(coursesToSave);
+			scheduleRetrainAfterCommit(tenantId);
 		}
 	}
 
@@ -429,6 +460,7 @@ public class AdminService {
 
 	@Transactional
 	public void importRatings(Long tenantId, MultipartFile file) throws IOException {
+		Map<String, UserCourseRating> ratingsToSave = new LinkedHashMap<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
 			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -449,14 +481,21 @@ public class AdminService {
 				User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
 					.orElseThrow(() -> new BadRequestException(GlobalErrorCode.USER_NOT_FOUND));
 
+				String key = user.getId() + ":" + course.getId() + ":" + attr.getId();
+				UserCourseRating pending = ratingsToSave.get(key);
+				if (pending != null) {
+					pending.setScore(score);
+					continue;
+				}
+
 				var existing = ratingRepository.findByUserIdAndCourseIdAndAttributeId(
 					user.getId(), course.getId(), attr.getId());
 				if (existing.isPresent()) {
 					UserCourseRating rating = existing.get();
 					rating.setScore(score);
-					ratingRepository.save(rating);
+					ratingsToSave.put(key, rating);
 				} else {
-					ratingRepository.save(UserCourseRating.builder()
+					ratingsToSave.put(key, UserCourseRating.builder()
 						.userId(user.getId())
 						.courseId(course.getId())
 						.attributeId(attr.getId())
@@ -465,6 +504,7 @@ public class AdminService {
 				}
 			}
 		}
+		ratingRepository.saveAll(ratingsToSave.values());
 	}
 
 	// ─── Helpers ──────────────────────────────────────────────────────────────
