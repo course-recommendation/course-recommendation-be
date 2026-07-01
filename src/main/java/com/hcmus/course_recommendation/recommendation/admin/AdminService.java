@@ -87,7 +87,7 @@ public class AdminService {
 		};
 		Page<User> page = userRepository.findAll(spec, pageable);
 		return PageResponse.from(page.map(u -> new AdminUserRow(u.getId(), u.getEmail(), u.getFullName(),
-			u.getAvatarUrl(), u.getRoles())));
+			u.getRoles())));
 	}
 
 	@Transactional
@@ -101,16 +101,10 @@ public class AdminService {
 			.email(request.getEmail())
 			.password(passwordEncoder.encode(request.getPassword()))
 			.fullName(request.getFullName())
-			.avatarUrl(request.getAvatarUrl())
 			.tenantId(tenantId)
 			.roles(roles)
 			.build();
-		var saved = userRepository.save(user);
-		if (saved.getAvatarUrl() == null || saved.getAvatarUrl().isBlank()) {
-			userRepository.save(saved.toBuilder()
-				.avatarUrl("https://picsum.photos/seed/" + saved.getId() + "/1600/900")
-				.build());
-		}
+		userRepository.save(user);
 	}
 
 	@Transactional
@@ -122,8 +116,6 @@ public class AdminService {
 			user.setEmail(request.getEmail());
 		if (request.getFullName() != null)
 			user.setFullName(request.getFullName());
-		if (request.getAvatarUrl() != null)
-			user.setAvatarUrl(request.getAvatarUrl());
 		if (request.getRoles() != null && !request.getRoles().isEmpty())
 			user.setRoles(request.getRoles());
 		userRepository.save(user);
@@ -153,13 +145,12 @@ public class AdminService {
 					continue;
 				String email = getCellAsString(row.getCell(0));
 				String fullName = getCellAsString(row.getCell(1));
-				String avatarUrl = getCellAsString(row.getCell(2));
-				String roleStr = getCellAsString(row.getCell(3));
-				String password = getCellAsString(row.getCell(4));
+				String roleStr = getCellAsString(row.getCell(2));
+				String password = getCellAsString(row.getCell(3));
 				if (email == null || password == null)
 					continue;
 				var roles = parseRole(roleStr);
-				var req = new CreateAdminUserRequest(email, password, fullName, avatarUrl, roles);
+				var req = new CreateAdminUserRequest(email, password, fullName, roles);
 				try {
 					createUser(tenantId, req);
 				} catch (BadRequestException e) {

@@ -16,6 +16,5 @@ import lombok.Setter;
 public class UpdateAdminUserRequest {
 	private String email;
 	private String fullName;
-	private String avatarUrl;
 	private List<Role> roles;
 }

@@ -17,6 +17,5 @@ public class CreateAdminUserRequest {
 	private String email;
 	private String password;
 	private String fullName;
-	private String avatarUrl;
 	private List<Role> roles;
 }
