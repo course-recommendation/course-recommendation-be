@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -87,7 +88,7 @@ public class AdminService {
 		};
 		Page<User> page = userRepository.findAll(spec, pageable);
 		return PageResponse.from(page.map(u -> new AdminUserRow(u.getId(), u.getEmail(), u.getFullName(),
-			u.getRoles())));
+			u.getRoles(), u.getCreatedAt())));
 	}
 
 	@Transactional
@@ -175,7 +176,8 @@ public class AdminService {
 			return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
 		};
 		Page<Attribute> page = attributeRepository.findAll(spec, pageable);
-		return PageResponse.from(page.map(a -> new AdminAttributeRow(a.getId(), a.getValue(), a.getAlgorithm())));
+		return PageResponse.from(page.map(a -> new AdminAttributeRow(a.getId(), a.getValue(), a.getAlgorithm(),
+			a.getCreatedAt())));
 	}
 
 	@Transactional
@@ -252,7 +254,7 @@ public class AdminService {
 		};
 		Page<Course> page = courseRepository.findAll(spec, pageable);
 		return PageResponse.from(page.map(c -> new AdminCourseRow(c.getId(), c.getCode(), c.getName(),
-			c.getDescription(), c.getAlgorithm())));
+			c.getDescription(), c.getAlgorithm(), c.getCreatedAt())));
 	}
 
 	@Transactional
@@ -369,7 +371,8 @@ public class AdminService {
 			courseIdToCode.getOrDefault(r.getCourseId(), String.valueOf(r.getCourseId())),
 			r.getAttributeId(),
 			attrIdToName.getOrDefault(r.getAttributeId(), String.valueOf(r.getAttributeId())),
-			r.getScore())));
+			r.getScore(),
+			r.getCreatedAt())));
 	}
 
 	@Transactional
@@ -482,7 +485,10 @@ public class AdminService {
 	private String getCellAsString(Cell cell) {
 		if (cell == null)
 			return null;
-		return switch (cell.getCellType()) {
+		CellType type = cell.getCellType() == CellType.FORMULA
+				? cell.getCachedFormulaResultType()
+				: cell.getCellType();
+		return switch (type) {
 			case STRING -> cell.getStringCellValue().trim();
 			case NUMERIC -> String.valueOf((long)cell.getNumericCellValue());
 			case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
@@ -493,7 +499,10 @@ public class AdminService {
 	private Integer getCellAsInteger(Cell cell) {
 		if (cell == null)
 			return null;
-		return switch (cell.getCellType()) {
+		CellType type = cell.getCellType() == CellType.FORMULA
+				? cell.getCachedFormulaResultType()
+				: cell.getCellType();
+		return switch (type) {
 			case NUMERIC -> (int)cell.getNumericCellValue();
 			case STRING -> {
 				try {

@@ -1,9 +1,13 @@
 package com.hcmus.course_recommendation.recommendation.model;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -30,4 +34,8 @@ public class Attribute implements Serializable {
 	private Algorithm algorithm;
 	private Long tenantId;
 	private String value;
+
+	@CreationTimestamp
+	@Column(name = "created_at", updatable = false)
+	private LocalDateTime createdAt;
 }

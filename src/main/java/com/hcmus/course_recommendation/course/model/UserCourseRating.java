@@ -1,5 +1,10 @@
 package com.hcmus.course_recommendation.course.model;
 
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -24,4 +29,8 @@ public class UserCourseRating {
 	private Long courseId;
 	private Long attributeId;
 	private Integer score;
+
+	@CreationTimestamp
+	@Column(name = "created_at", updatable = false)
+	private LocalDateTime createdAt;
 }
