@@ -11,7 +11,11 @@ public interface UserRepository extends JpaRepository<User, String>, JpaSpecific
 
 	Optional<User> findByEmailAndTenantId(String email, Long tenantId);
 
+	List<User> findByEmailInAndTenantId(List<String> emails, Long tenantId);
+
 	List<User> findByIdIn(List<String> ids);
 
 	List<User> findByTenantIdAndFullNameContainingIgnoreCase(Long tenantId, String fullName);
+
+	List<User> findByTenantId(Long tenantId);
 }

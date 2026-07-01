@@ -139,9 +139,12 @@ public class AdminService {
 		userIds.forEach(id -> deleteUser(tenantId, id));
 	}
 
+	private record UserImportRow(String email, String fullName, List<Role> roles, String password) {
+	}
+
 	@Transactional
 	public void importUsers(Long tenantId, MultipartFile file) throws IOException {
-		List<User> usersToSave = new ArrayList<>();
+		List<UserImportRow> rows = new ArrayList<>();
 		Set<String> seenEmails = new HashSet<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
@@ -155,20 +158,39 @@ public class AdminService {
 				String password = getCellAsString(row.getCell(3));
 				if (email == null || password == null)
 					continue;
-				if (!seenEmails.add(email) || userRepository.findByEmailAndTenantId(email, tenantId).isPresent()) {
+				if (!seenEmails.add(email)) {
 					log.warn("Skipping duplicate email {} on row {}", email, i);
 					continue;
 				}
-				var roles = parseRole(roleStr);
-				usersToSave.add(User.builder()
-					.email(email)
-					.password(passwordEncoder.encode(password))
-					.fullName(fullName)
-					.tenantId(tenantId)
-					.roles(roles)
-					.build());
+				rows.add(new UserImportRow(email, fullName, parseRole(roleStr), password));
 			}
 		}
+		if (rows.isEmpty())
+			return;
+
+		// One bulk lookup instead of one findByEmailAndTenantId query per row.
+		List<String> emails = rows.stream().map(UserImportRow::email).toList();
+		Set<String> existingEmails = userRepository.findByEmailInAndTenantId(emails, tenantId).stream()
+			.map(User::getEmail)
+			.collect(Collectors.toSet());
+
+		// BCrypt is deliberately CPU-heavy; hash in parallel since each row is independent.
+		List<User> usersToSave = rows.stream()
+			.filter(r -> {
+				boolean isDuplicate = existingEmails.contains(r.email());
+				if (isDuplicate)
+					log.warn("Skipping duplicate email {}", r.email());
+				return !isDuplicate;
+			})
+			.parallel()
+			.map(r -> User.builder()
+				.email(r.email())
+				.password(passwordEncoder.encode(r.password()))
+				.fullName(r.fullName())
+				.tenantId(tenantId)
+				.roles(r.roles())
+				.build())
+			.toList();
 		userRepository.saveAll(usersToSave);
 	}
 
@@ -458,9 +480,12 @@ public class AdminService {
 		ids.forEach(id -> deleteRating(tenantId, id));
 	}
 
+	private record RatingImportRow(String userEmail, String courseCode, String attributeName, Integer score) {
+	}
+
 	@Transactional
 	public void importRatings(Long tenantId, MultipartFile file) throws IOException {
-		Map<String, UserCourseRating> ratingsToSave = new LinkedHashMap<>();
+		List<RatingImportRow> rows = new ArrayList<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
 			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -473,35 +498,64 @@ public class AdminService {
 				Integer score = getCellAsInteger(row.getCell(3));
 				if (userEmail == null || courseCode == null || attributeName == null || score == null)
 					continue;
+				rows.add(new RatingImportRow(userEmail, courseCode, attributeName, score));
+			}
+		}
+		if (rows.isEmpty())
+			return;
 
-				Course course = courseRepository.findByCodeAndTenantId(courseCode, tenantId)
-					.orElseThrow(() -> new BadRequestException(GlobalErrorCode.NOT_FOUND));
-				Attribute attr = attributeRepository.findByValueAndTenantId(attributeName, tenantId)
-					.orElseThrow(() -> new BadRequestException(GlobalErrorCode.NOT_FOUND));
-				User user = userRepository.findByEmailAndTenantId(userEmail, tenantId)
-					.orElseThrow(() -> new BadRequestException(GlobalErrorCode.USER_NOT_FOUND));
+		// Bulk-resolve references instead of one query per row for course/attribute/user.
+		List<String> courseCodes = rows.stream().map(RatingImportRow::courseCode).distinct().toList();
+		List<String> attributeNames = rows.stream().map(RatingImportRow::attributeName).distinct().toList();
+		List<String> userEmails = rows.stream().map(RatingImportRow::userEmail).distinct().toList();
 
-				String key = user.getId() + ":" + course.getId() + ":" + attr.getId();
-				UserCourseRating pending = ratingsToSave.get(key);
-				if (pending != null) {
-					pending.setScore(score);
-					continue;
-				}
+		Map<String, Course> courseByCode = courseRepository.findByCodeInAndTenantId(courseCodes, tenantId).stream()
+			.collect(Collectors.toMap(Course::getCode, c -> c));
+		Map<String, Attribute> attrByValue = attributeRepository
+			.findByValueInAndTenantId(attributeNames, tenantId).stream()
+			.collect(Collectors.toMap(Attribute::getValue, a -> a));
+		Map<String, User> userByEmail = userRepository.findByEmailInAndTenantId(userEmails, tenantId).stream()
+			.collect(Collectors.toMap(User::getEmail, u -> u));
 
-				var existing = ratingRepository.findByUserIdAndCourseIdAndAttributeId(
-					user.getId(), course.getId(), attr.getId());
-				if (existing.isPresent()) {
-					UserCourseRating rating = existing.get();
-					rating.setScore(score);
-					ratingsToSave.put(key, rating);
-				} else {
-					ratingsToSave.put(key, UserCourseRating.builder()
-						.userId(user.getId())
-						.courseId(course.getId())
-						.attributeId(attr.getId())
-						.score(score)
-						.build());
-				}
+		// Bulk-fetch already-existing ratings for the referenced users/courses/attributes,
+		// instead of one findByUserIdAndCourseIdAndAttributeId query per row.
+		List<Long> courseIds = courseByCode.values().stream().map(Course::getId).toList();
+		List<Long> attributeIds = attrByValue.values().stream().map(Attribute::getId).toList();
+		List<String> userIds = userByEmail.values().stream().map(User::getId).toList();
+		Map<String, UserCourseRating> existingByKey = ratingRepository
+			.findByUserIdInAndCourseIdInAndAttributeIdIn(userIds, courseIds, attributeIds).stream()
+			.collect(Collectors.toMap(r -> r.getUserId() + ":" + r.getCourseId() + ":" + r.getAttributeId(), r -> r));
+
+		Map<String, UserCourseRating> ratingsToSave = new LinkedHashMap<>();
+		for (RatingImportRow row : rows) {
+			Course course = courseByCode.get(row.courseCode());
+			if (course == null)
+				throw new BadRequestException(GlobalErrorCode.NOT_FOUND);
+			Attribute attr = attrByValue.get(row.attributeName());
+			if (attr == null)
+				throw new BadRequestException(GlobalErrorCode.NOT_FOUND);
+			User user = userByEmail.get(row.userEmail());
+			if (user == null)
+				throw new BadRequestException(GlobalErrorCode.USER_NOT_FOUND);
+
+			String key = user.getId() + ":" + course.getId() + ":" + attr.getId();
+			UserCourseRating pending = ratingsToSave.get(key);
+			if (pending != null) {
+				pending.setScore(row.score());
+				continue;
+			}
+
+			UserCourseRating existing = existingByKey.get(key);
+			if (existing != null) {
+				existing.setScore(row.score());
+				ratingsToSave.put(key, existing);
+			} else {
+				ratingsToSave.put(key, UserCourseRating.builder()
+					.userId(user.getId())
+					.courseId(course.getId())
+					.attributeId(attr.getId())
+					.score(row.score())
+					.build());
 			}
 		}
 		ratingRepository.saveAll(ratingsToSave.values());

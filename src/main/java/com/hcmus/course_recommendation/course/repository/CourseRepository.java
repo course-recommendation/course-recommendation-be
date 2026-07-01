@@ -26,5 +26,7 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
 
 	Optional<Course> findByCodeAndTenantId(String code, Long tenantId);
 
+	List<Course> findByCodeInAndTenantId(List<String> codes, Long tenantId);
+
 	List<Course> findByTenantId(Long tenantId);
 }

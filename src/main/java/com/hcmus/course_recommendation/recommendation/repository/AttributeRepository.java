@@ -18,5 +18,7 @@ public interface AttributeRepository extends JpaRepository<Attribute, Long>, Jpa
 
 	Optional<Attribute> findByValueAndTenantId(String value, Long tenantId);
 
+	List<Attribute> findByValueInAndTenantId(List<String> values, Long tenantId);
+
 	List<Attribute> findByTenantId(Long tenantId);
 }
