@@ -261,19 +261,15 @@ public class AdminService {
 		};
 		Page<Course> page = courseRepository.findAll(spec, pageable);
 		return PageResponse.from(page.map(c -> new AdminCourseRow(c.getId(), c.getCode(), c.getName(),
-			c.getDescription(), c.getThumbnailUrl(), c.getAlgorithm())));
+			c.getDescription(), c.getAlgorithm())));
 	}
 
 	@Transactional
 	public void createCourse(Long tenantId, UpsertCourseRequest request) {
-		var thumbnailUrl = request.getThumbnailUrl() != null && !request.getThumbnailUrl().isBlank()
-			? request.getThumbnailUrl()
-			: "https://picsum.photos/seed/" + request.getCode() + "/1600/900";
 		var course = Course.builder()
 			.code(request.getCode())
 			.name(request.getName())
 			.description(request.getDescription())
-			.thumbnailUrl(thumbnailUrl)
 			.algorithm(request.getAlgorithm() != null ? request.getAlgorithm() : Algorithm.FS)
 			.tenantId(tenantId)
 			.build();
@@ -292,8 +288,6 @@ public class AdminService {
 			course.setName(request.getName());
 		if (request.getDescription() != null)
 			course.setDescription(request.getDescription());
-		if (request.getThumbnailUrl() != null)
-			course.setThumbnailUrl(request.getThumbnailUrl());
 		if (request.getAlgorithm() != null)
 			course.setAlgorithm(request.getAlgorithm());
 		courseRepository.save(course);
@@ -324,12 +318,11 @@ public class AdminService {
 				String code = getCellAsString(row.getCell(0));
 				String name = getCellAsString(row.getCell(1));
 				String description = getCellAsString(row.getCell(2));
-				String thumbnailUrl = getCellAsString(row.getCell(3));
-				String algorithmStr = getCellAsString(row.getCell(4));
+				String algorithmStr = getCellAsString(row.getCell(3));
 				if (code == null || name == null)
 					continue;
 				Algorithm algorithm = parseAlgorithm(algorithmStr);
-				createCourse(tenantId, new UpsertCourseRequest(code, name, description, thumbnailUrl, algorithm));
+				createCourse(tenantId, new UpsertCourseRequest(code, name, description, algorithm));
 			}
 		}
 	}

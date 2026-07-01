@@ -40,4 +40,8 @@ public class User implements Serializable {
 	private List<Role> roles;
 	@Builder.Default
 	private boolean showExplanation = true;
+
+	public String getAvatarUrl() {
+		return String.format("https://picsum.photos/seed/%s/1600/900", id);
+	}
 }

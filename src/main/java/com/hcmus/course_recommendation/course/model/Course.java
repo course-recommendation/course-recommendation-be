@@ -39,4 +39,8 @@ public class Course implements Serializable {
 	private String name;
 	private String description;
 	private String thumbnailUrl;
+
+	public String getThumbnailUrl() {
+		return String.format("https://picsum.photos/seed/%s/1600/900", code);
+	}
 }

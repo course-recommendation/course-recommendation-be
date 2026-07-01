@@ -15,6 +15,5 @@ public class UpsertCourseRequest {
 	private String code;
 	private String name;
 	private String description;
-	private String thumbnailUrl;
 	private Algorithm algorithm;
 }
