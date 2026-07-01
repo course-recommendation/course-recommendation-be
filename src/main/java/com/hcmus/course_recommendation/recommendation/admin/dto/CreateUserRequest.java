@@ -13,7 +13,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateAdminUserRequest {
+public class CreateUserRequest {
 	private String email;
 	private String password;
 	private String fullName;

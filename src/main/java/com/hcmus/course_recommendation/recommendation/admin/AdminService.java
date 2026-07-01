@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -21,6 +22,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,8 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hcmus.course_recommendation.common.dto.PageResponse;
 import com.hcmus.course_recommendation.common.event.DeletedResourceApplicationEvent;
 import com.hcmus.course_recommendation.common.exception.BadRequestException;
@@ -42,14 +46,16 @@ import com.hcmus.course_recommendation.recommendation.admin.dto.AdminAttributeRo
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminCourseRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminRatingRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminUserRow;
-import com.hcmus.course_recommendation.recommendation.admin.dto.CreateAdminUserRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.CreateRatingRequest;
+import com.hcmus.course_recommendation.recommendation.admin.dto.CreateUserRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpdateAdminUserRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpdateRatingRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpsertAttributeRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpsertCourseRequest;
 import com.hcmus.course_recommendation.recommendation.model.Attribute;
 import com.hcmus.course_recommendation.recommendation.repository.AttributeRepository;
+import com.hcmus.course_recommendation.tenant.Tenant;
+import com.hcmus.course_recommendation.tenant.TenantRepository;
 import com.hcmus.course_recommendation.user.Role;
 import com.hcmus.course_recommendation.user.User;
 import com.hcmus.course_recommendation.user.UserRepository;
@@ -62,15 +68,22 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AdminService {
 
+	private static final int RANDOM_RATING_COURSES_PER_USER = 20;
+	private static final int RANDOM_RATING_MIN_SCORE = 1;
+	private static final int RANDOM_RATING_MAX_SCORE = 5;
+	private static final double RATING_NOISE_SIGMA = 0.8;
+	private static final int JDBC_BATCH_SIZE = 1000;
 	private final UserRepository userRepository;
 	private final CourseRepository courseRepository;
 	private final AttributeRepository attributeRepository;
+	private final TenantRepository tenantRepository;
+	// ─── Users ────────────────────────────────────────────────────────────────
 	private final UserCourseRatingRepository ratingRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final ApplicationEventPublisher eventPublisher;
 	private final RetrainService retrainService;
-
-	// ─── Users ────────────────────────────────────────────────────────────────
+	private final JdbcTemplate jdbcTemplate;
+	private final ObjectMapper objectMapper;
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminUserRow> getUsers(Long tenantId, Pageable pageable, String email, String fullName,
@@ -97,7 +110,7 @@ public class AdminService {
 	}
 
 	@Transactional
-	public void createUser(Long tenantId, CreateAdminUserRequest request) {
+	public void createUser(Long tenantId, CreateUserRequest request) {
 		if (userRepository.findByEmailAndTenantId(request.getEmail(), tenantId).isPresent()) {
 			throw new BadRequestException(GlobalErrorCode.EMAIL_DUPLICATED);
 		}
@@ -112,6 +125,8 @@ public class AdminService {
 			.build();
 		userRepository.save(user);
 	}
+
+	// ─── Attributes ───────────────────────────────────────────────────────────
 
 	@Transactional
 	public void updateUser(Long tenantId, String userId, UpdateAdminUserRequest request) {
@@ -139,9 +154,6 @@ public class AdminService {
 	@Transactional
 	public void deleteUsers(Long tenantId, List<String> userIds) {
 		userIds.forEach(id -> deleteUser(tenantId, id));
-	}
-
-	private record UserImportRow(String email, String fullName, List<Role> roles, String password) {
 	}
 
 	@Transactional
@@ -177,7 +189,7 @@ public class AdminService {
 			.collect(Collectors.toSet());
 
 		// BCrypt is deliberately CPU-heavy; hash in parallel since each row is independent.
-		List<User> usersToSave = rows.stream()
+		List<Object[]> params = rows.stream()
 			.filter(r -> {
 				boolean isDuplicate = existingEmails.contains(r.email());
 				if (isDuplicate)
@@ -185,18 +197,26 @@ public class AdminService {
 				return !isDuplicate;
 			})
 			.parallel()
-			.map(r -> User.builder()
-				.email(r.email())
-				.password(passwordEncoder.encode(r.password()))
-				.fullName(r.fullName())
-				.tenantId(tenantId)
-				.roles(r.roles())
-				.build())
+			.map(r -> new Object[] {
+				UUID.randomUUID().toString(),
+				r.email(),
+				passwordEncoder.encode(r.password()),
+				r.fullName(),
+				tenantId,
+				writeValueAsJson(r.roles()),
+			})
 			.toList();
-		userRepository.saveAll(usersToSave);
-	}
+		if (params.isEmpty())
+			return;
 
-	// ─── Attributes ───────────────────────────────────────────────────────────
+		String sql = """
+			INSERT INTO users (id, email, password, full_name, tenant_id, roles)
+			VALUES (?, ?, ?, ?, ?, ?)
+			""";
+		for (int i = 0; i < params.size(); i += JDBC_BATCH_SIZE) {
+			jdbcTemplate.batchUpdate(sql, params.subList(i, Math.min(i + JDBC_BATCH_SIZE, params.size())));
+		}
+	}
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminAttributeRow> getAttributes(Long tenantId, Pageable pageable, String value,
@@ -225,6 +245,8 @@ public class AdminService {
 		attributeRepository.save(attr);
 		scheduleRetrainAfterCommit(tenantId);
 	}
+
+	// ─── Courses ──────────────────────────────────────────────────────────────
 
 	@Transactional
 	public void updateAttribute(Long tenantId, Long attrId, UpsertAttributeRequest request) {
@@ -255,6 +277,9 @@ public class AdminService {
 
 	@Transactional
 	public void importAttributes(Long tenantId, MultipartFile file) throws IOException {
+		Algorithm algorithm = tenantRepository.findById(tenantId)
+			.map(Tenant::getAlgorithm)
+			.orElse(Algorithm.FS);
 		List<Attribute> attributesToSave = new ArrayList<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
@@ -263,10 +288,8 @@ public class AdminService {
 				if (row == null)
 					continue;
 				String value = getCellAsString(row.getCell(0));
-				String algorithmStr = getCellAsString(row.getCell(1));
 				if (value == null)
 					continue;
-				Algorithm algorithm = parseAlgorithm(algorithmStr);
 				attributesToSave.add(Attribute.builder()
 					.value(value)
 					.algorithm(algorithm)
@@ -279,8 +302,6 @@ public class AdminService {
 			scheduleRetrainAfterCommit(tenantId);
 		}
 	}
-
-	// ─── Courses ──────────────────────────────────────────────────────────────
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminCourseRow> getCourses(Long tenantId, Pageable pageable, String code, String name,
@@ -314,6 +335,8 @@ public class AdminService {
 		scheduleRetrainAfterCommit(tenantId);
 	}
 
+	// ─── Ratings ──────────────────────────────────────────────────────────────
+
 	@Transactional
 	public void updateCourse(Long tenantId, Long courseId, UpsertCourseRequest request) {
 		Course course = courseRepository.findById(courseId)
@@ -346,6 +369,9 @@ public class AdminService {
 
 	@Transactional
 	public void importCourses(Long tenantId, MultipartFile file) throws IOException {
+		Algorithm algorithm = tenantRepository.findById(tenantId)
+			.map(Tenant::getAlgorithm)
+			.orElse(Algorithm.FS);
 		List<Course> coursesToSave = new ArrayList<>();
 		try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
@@ -356,10 +382,8 @@ public class AdminService {
 				String code = getCellAsString(row.getCell(0));
 				String name = getCellAsString(row.getCell(1));
 				String description = getCellAsString(row.getCell(2));
-				String algorithmStr = getCellAsString(row.getCell(3));
 				if (code == null || name == null)
 					continue;
-				Algorithm algorithm = parseAlgorithm(algorithmStr);
 				coursesToSave.add(Course.builder()
 					.code(code)
 					.name(name)
@@ -374,8 +398,6 @@ public class AdminService {
 			scheduleRetrainAfterCommit(tenantId);
 		}
 	}
-
-	// ─── Ratings ──────────────────────────────────────────────────────────────
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminRatingRow> getRatings(Long tenantId, Pageable pageable, String userEmail,
@@ -395,9 +417,9 @@ public class AdminService {
 		if (userEmail != null && !userEmail.isBlank()) {
 			String emailPattern = userEmail.toLowerCase();
 			List<String> matchingUserIds = userRepository.findAll(
-				(Specification<User>) (root, query, cb) -> cb.and(
-					cb.equal(root.get("tenantId"), tenantId),
-					cb.like(cb.lower(root.get("email")), "%" + emailPattern + "%")))
+					(Specification<User>)(root, query, cb) -> cb.and(
+						cb.equal(root.get("tenantId"), tenantId),
+						cb.like(cb.lower(root.get("email")), "%" + emailPattern + "%")))
 				.stream().map(User::getId).toList();
 			if (matchingUserIds.isEmpty()) {
 				return PageResponse.<AdminRatingRow>builder()
@@ -482,9 +504,6 @@ public class AdminService {
 		ids.forEach(id -> deleteRating(tenantId, id));
 	}
 
-	private record RatingImportRow(String userEmail, String courseCode, String attributeName, Integer score) {
-	}
-
 	@Transactional
 	public void importRatings(Long tenantId, MultipartFile file) throws IOException {
 		List<RatingImportRow> rows = new ArrayList<>();
@@ -563,27 +582,15 @@ public class AdminService {
 		ratingRepository.saveAll(ratingsToSave.values());
 	}
 
-	private static final int RANDOM_RATING_COURSES_PER_USER = 20;
-	private static final int RANDOM_RATING_MIN_SCORE = 1;
-	private static final int RANDOM_RATING_MAX_SCORE = 5;
-	private static final double RATING_NOISE_SIGMA = 0.8;
-
 	@Transactional
-	public void generateRandomUserCourseRatings(Long tenantId) {
+	public void generateRandomUserCourseRatings(Long tenantId, Long seed) {
 		List<User> users = userRepository.findByTenantId(tenantId);
 		List<Course> courses = courseRepository.findByTenantId(tenantId);
 		List<Attribute> attributes = attributeRepository.findByTenantId(tenantId);
 		if (users.isEmpty() || courses.isEmpty() || attributes.isEmpty())
 			return;
 
-		List<String> userIds = users.stream().map(User::getId).toList();
-		List<Long> courseIds = courses.stream().map(Course::getId).toList();
-		List<Long> attributeIds = attributes.stream().map(Attribute::getId).toList();
-		Map<String, UserCourseRating> existingByKey = ratingRepository
-			.findByUserIdInAndCourseIdInAndAttributeIdIn(userIds, courseIds, attributeIds).stream()
-			.collect(Collectors.toMap(r -> r.getUserId() + ":" + r.getCourseId() + ":" + r.getAttributeId(), r -> r));
-
-		Random random = new Random();
+		Random random = seed != null ? new Random(seed) : new Random();
 		// Stable per-(course, attribute) target so its average settles near that target
 		// instead of regressing to 3 as more ratings are generated.
 		Map<String, Double> targetByCourseAttribute = new LinkedHashMap<>();
@@ -593,7 +600,7 @@ public class AdminService {
 			}
 		}
 
-		Map<String, UserCourseRating> ratingsToSave = new LinkedHashMap<>();
+		List<Object[]> rows = new ArrayList<>();
 		for (User user : users) {
 			List<Course> shuffledCourses = new ArrayList<>(courses);
 			Collections.shuffle(shuffledCourses, random);
@@ -602,28 +609,21 @@ public class AdminService {
 				for (Attribute attribute : attributes) {
 					double target = targetByCourseAttribute.get(course.getId() + ":" + attribute.getId());
 					double rawScore = target + random.nextGaussian() * RATING_NOISE_SIGMA;
-					int score = (int)Math.max(RANDOM_RATING_MIN_SCORE,
-						Math.min(RANDOM_RATING_MAX_SCORE, Math.round(rawScore)));
-					String key = user.getId() + ":" + course.getId() + ":" + attribute.getId();
-					UserCourseRating existing = existingByKey.get(key);
-					if (existing != null) {
-						existing.setScore(score);
-						ratingsToSave.put(key, existing);
-					} else {
-						ratingsToSave.put(key, UserCourseRating.builder()
-							.userId(user.getId())
-							.courseId(course.getId())
-							.attributeId(attribute.getId())
-							.score(score)
-							.build());
-					}
+					int score = Math.clamp(Math.round(rawScore), RANDOM_RATING_MIN_SCORE, RANDOM_RATING_MAX_SCORE);
+					rows.add(new Object[] {user.getId(), course.getId(), attribute.getId(), score});
 				}
 			}
 		}
-		ratingRepository.saveAll(ratingsToSave.values());
-	}
 
-	// ─── Helpers ──────────────────────────────────────────────────────────────
+		String sql = """
+			INSERT INTO user_course_rating (user_id, course_id, attribute_id, score)
+			VALUES (?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE score = VALUES(score)
+			""";
+		for (int i = 0; i < rows.size(); i += JDBC_BATCH_SIZE) {
+			jdbcTemplate.batchUpdate(sql, rows.subList(i, Math.min(i + JDBC_BATCH_SIZE, rows.size())));
+		}
+	}
 
 	private void scheduleRetrainAfterCommit(Long tenantId) {
 		if (TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -642,8 +642,8 @@ public class AdminService {
 		if (cell == null)
 			return null;
 		CellType type = cell.getCellType() == CellType.FORMULA
-				? cell.getCachedFormulaResultType()
-				: cell.getCellType();
+			? cell.getCachedFormulaResultType()
+			: cell.getCellType();
 		return switch (type) {
 			case STRING -> cell.getStringCellValue().trim();
 			case NUMERIC -> String.valueOf((long)cell.getNumericCellValue());
@@ -652,12 +652,14 @@ public class AdminService {
 		};
 	}
 
+	// ─── Helpers ──────────────────────────────────────────────────────────────
+
 	private Integer getCellAsInteger(Cell cell) {
 		if (cell == null)
 			return null;
 		CellType type = cell.getCellType() == CellType.FORMULA
-				? cell.getCachedFormulaResultType()
-				: cell.getCellType();
+			? cell.getCachedFormulaResultType()
+			: cell.getCellType();
 		return switch (type) {
 			case NUMERIC -> (int)cell.getNumericCellValue();
 			case STRING -> {
@@ -681,6 +683,14 @@ public class AdminService {
 		}
 	}
 
+	private String writeValueAsJson(Object value) {
+		try {
+			return objectMapper.writeValueAsString(value);
+		} catch (JsonProcessingException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
 	private List<Role> parseRole(String str) {
 		if (str == null)
 			return List.of(Role.USER);
@@ -689,5 +699,11 @@ public class AdminService {
 		} catch (IllegalArgumentException e) {
 			return List.of(Role.USER);
 		}
+	}
+
+	private record UserImportRow(String email, String fullName, List<Role> roles, String password) {
+	}
+
+	private record RatingImportRow(String userEmail, String courseCode, String attributeName, Integer score) {
 	}
 }

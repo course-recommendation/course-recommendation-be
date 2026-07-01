@@ -26,8 +26,8 @@ import com.hcmus.course_recommendation.recommendation.admin.dto.AdminCourseRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminRatingRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminUserRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.BulkDeleteRequest;
-import com.hcmus.course_recommendation.recommendation.admin.dto.CreateAdminUserRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.CreateRatingRequest;
+import com.hcmus.course_recommendation.recommendation.admin.dto.CreateUserRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpdateAdminUserRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpdateRatingRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpsertAttributeRequest;
@@ -47,13 +47,14 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/admin")
 public class AdminController {
 
+	private static final long DEFAULT_RANDOM_RATING_SEED = 42L;
 	private final UserService userService;
 	private final TriRankService triRankService;
 	private final FSService fSService;
 	private final AdminService adminService;
-	private final TenantRepository tenantRepository;
 
 	// ─── Tenant / Auth ────────────────────────────────────────────────────────
+	private final TenantRepository tenantRepository;
 
 	@GetMapping("/tenant-ready")
 	public RestResponse<Boolean> isTenantReady(@TenantId Long tenantId) {
@@ -71,6 +72,8 @@ public class AdminController {
 		return RestResponse.make();
 	}
 
+	// ─── Train ────────────────────────────────────────────────────────────────
+
 	@GetMapping("/is-admin")
 	public RestResponse<Boolean> isAdmin(Principal principal) {
 		var user = userService.getUserById(principal.getName());
@@ -79,8 +82,6 @@ public class AdminController {
 		return RestResponse.make(
 			user.getRoles() != null && user.getRoles().stream().anyMatch(r -> r.name().equals("ADMIN")));
 	}
-
-	// ─── Train ────────────────────────────────────────────────────────────────
 
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping("/trirank/train")
@@ -95,14 +96,14 @@ public class AdminController {
 		return RestResponse.make();
 	}
 
+	// ─── Users ────────────────────────────────────────────────────────────────
+
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping("/fs/train")
 	public RestResponse<Void> trainFsForMyTenant(@TenantId Long tenantId) {
 		fSService.updateCoursesSentiments(tenantId);
 		return RestResponse.make();
 	}
-
-	// ─── Users ────────────────────────────────────────────────────────────────
 
 	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping("/users")
@@ -127,14 +128,14 @@ public class AdminController {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping("/users")
-	public RestResponse<Void> createUser(@TenantId Long tenantId, @RequestBody CreateAdminUserRequest request) {
+	public RestResponse<Void> createUser(@TenantId Long tenantId, @RequestBody CreateUserRequest request) {
 		adminService.createUser(tenantId, request);
 		return RestResponse.make();
 	}
 
 	@PostMapping("/{tenantId}/users")
 	public RestResponse<Void> createUserForTenant(@PathVariable Long tenantId,
-		@RequestBody CreateAdminUserRequest request) {
+		@RequestBody CreateUserRequest request) {
 		adminService.createUser(tenantId, request);
 		return RestResponse.make();
 	}
@@ -161,6 +162,8 @@ public class AdminController {
 		return RestResponse.make();
 	}
 
+	// ─── Attributes ───────────────────────────────────────────────────────────
+
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping(value = "/users/import", consumes = "multipart/form-data")
 	public RestResponse<Void> importUsers(@TenantId Long tenantId,
@@ -168,8 +171,6 @@ public class AdminController {
 		adminService.importUsers(tenantId, file);
 		return RestResponse.make();
 	}
-
-	// ─── Attributes ───────────────────────────────────────────────────────────
 
 	@GetMapping("/attributes")
 	public RestResponse<PageResponse<AdminAttributeRow>> getAttributes(
@@ -211,6 +212,8 @@ public class AdminController {
 		return RestResponse.make();
 	}
 
+	// ─── Courses ──────────────────────────────────────────────────────────────
+
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping(value = "/attributes/import", consumes = "multipart/form-data")
 	public RestResponse<Void> importAttributes(@TenantId Long tenantId,
@@ -218,8 +221,6 @@ public class AdminController {
 		adminService.importAttributes(tenantId, file);
 		return RestResponse.make();
 	}
-
-	// ─── Courses ──────────────────────────────────────────────────────────────
 
 	@GetMapping("/courses")
 	public RestResponse<PageResponse<AdminCourseRow>> getCourses(
@@ -260,6 +261,8 @@ public class AdminController {
 		return RestResponse.make();
 	}
 
+	// ─── Ratings ──────────────────────────────────────────────────────────────
+
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping(value = "/courses/import", consumes = "multipart/form-data")
 	public RestResponse<Void> importCourses(@TenantId Long tenantId,
@@ -267,8 +270,6 @@ public class AdminController {
 		adminService.importCourses(tenantId, file);
 		return RestResponse.make();
 	}
-
-	// ─── Ratings ──────────────────────────────────────────────────────────────
 
 	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping("/ratings")
@@ -319,8 +320,9 @@ public class AdminController {
 	}
 
 	@PostMapping("/generate-random-user-course-ratings")
-	public RestResponse<Void> generateRandomUserCourseRatings(@RequestParam Long tenantId) {
-		adminService.generateRandomUserCourseRatings(tenantId);
+	public RestResponse<Void> generateRandomUserCourseRatings(@RequestParam Long tenantId,
+		@RequestParam(required = false, defaultValue = "42") Long seed) {
+		adminService.generateRandomUserCourseRatings(tenantId, seed);
 		return RestResponse.make();
 	}
 }

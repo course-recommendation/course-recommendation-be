@@ -1,5 +1,5 @@
 spring:
   datasource:
-    url: jdbc:mysql://${MYSQL_URL}:${MYSQL_PORT}/${MYSQL_DATABASE_NAME}
+    url: jdbc:mysql://${MYSQL_URL}:${MYSQL_PORT}/${MYSQL_DATABASE_NAME}?rewriteBatchedStatements=true
     username: ${MYSQL_USERNAME}
     password: ${MYSQL_ROOT_PASSWORD}

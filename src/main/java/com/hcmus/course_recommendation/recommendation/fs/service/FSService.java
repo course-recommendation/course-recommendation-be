@@ -220,26 +220,21 @@ public class FSService {
 	@Transactional
 	public void updateCoursesSentiments(Long tenantId) {
 		fsCourseSentimentRepository.deleteByTenantId(tenantId);
-		;
 
 		var attributes = recommendationService.getAttributes(Algorithm.FS, tenantId);
-
 		var courses = courseRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId);
-
 		var userCourseRatings = userCourseRatingRepository.findByAlgorithmAndTenantId(Algorithm.FS, tenantId);
 
+		var averageScoreByCourseAndAttribute = userCourseRatings.stream()
+			.collect(Collectors.groupingBy(
+				rating -> Map.entry(rating.getCourseId(), rating.getAttributeId()),
+				Collectors.averagingInt(UserCourseRating::getScore)));
+
+		// Records were just deleted above, so every sentiment here is newly built rather than updated.
 		var newSentiments = courses.stream().map(course -> {
-			var ratingsOfCourse = userCourseRatings.stream()
-				.filter(rating -> rating.getCourseId().equals(course.getId()))
-				.toList();
-
 			var itemSentiments = attributes.stream().map(attribute -> {
-				var ratingsOfAttribute = ratingsOfCourse.stream()
-					.filter(rating -> attribute.getId().equals(rating.getAttributeId()))
-					.toList();
-
-				var averageScore =
-					ratingsOfAttribute.stream().mapToInt(UserCourseRating::getScore).average().orElse(3.0);
+				var averageScore = averageScoreByCourseAndAttribute.getOrDefault(
+					Map.entry(course.getId(), attribute.getId()), 3.0);
 
 				return FSItemSentiment.builder()
 					.attribute(attribute.getValue())
@@ -247,12 +242,10 @@ public class FSService {
 					.build();
 			}).toList();
 
-			return fsCourseSentimentRepository.findByCourseId(course.getId())
-				.map(existing -> existing.toBuilder().itemSentiments(itemSentiments).build())
-				.orElse(FsCourseSentiment.builder()
-					.courseId(course.getId())
-					.itemSentiments(itemSentiments)
-					.build());
+			return FsCourseSentiment.builder()
+				.courseId(course.getId())
+				.itemSentiments(itemSentiments)
+				.build();
 		}).toList();
 
 		fsCourseSentimentRepository.saveAll(newSentiments);
