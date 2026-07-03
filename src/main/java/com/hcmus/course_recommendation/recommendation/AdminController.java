@@ -325,4 +325,11 @@ public class AdminController {
 		adminService.generateRandomUserCourseRatings(tenantId, seed);
 		return RestResponse.make();
 	}
+
+	@PostMapping("/generate-random-posts-comments")
+	public RestResponse<Void> generateRandomPostsAndComments(@RequestParam Long tenantId,
+		@RequestParam(required = false, defaultValue = "42") Long seed) {
+		adminService.generateRandomPostsAndComments(tenantId, seed);
+		return RestResponse.make();
+	}
 }

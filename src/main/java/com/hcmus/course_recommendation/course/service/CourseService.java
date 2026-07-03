@@ -195,9 +195,7 @@ public class CourseService {
 		if (normalizedFilterCoursesOptions.contains(FilterCoursesOption.COMPLETED)) {
 			finalFilteredCourseIds.addAll(completedCourseIds);
 		}
-		if (normalizedFilterCoursesOptions.contains(FilterCoursesOption.CUSTOM)) {
-			finalFilteredCourseIds.addAll(customFilteredCourseIds);
-		}
+		finalFilteredCourseIds.addAll(customFilteredCourseIds);
 
 		return courseRepository.findByIdIn(finalFilteredCourseIds).stream().map(Course::getCode).toList();
 	}

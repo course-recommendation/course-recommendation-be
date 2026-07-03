@@ -4,7 +4,9 @@ import java.security.Principal;
 import java.util.List;
 
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hcmus.course_recommendation.common.RestResponse;
+import com.hcmus.course_recommendation.common.dto.PageResponse;
 import com.hcmus.course_recommendation.discuss.dto.CreatePostCommentRequest;
 import com.hcmus.course_recommendation.discuss.dto.CreatePostRequest;
 import com.hcmus.course_recommendation.discuss.dto.FindPostDetailsRequest;
@@ -39,10 +42,11 @@ public class DiscussController {
 	}
 
 	@GetMapping("/posts")
-	public RestResponse<List<PostDetail>> findPostDetails(@ParameterObject FindPostDetailsRequest request,
-		@ParameterObject Sort sort, @TenantId Long tenantId, Principal principal) {
+	public RestResponse<PageResponse<PostDetail>> findPostDetails(@ParameterObject FindPostDetailsRequest request,
+		@PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+		@TenantId Long tenantId, Principal principal) {
 		request.setTenantId(tenantId);
-		return RestResponse.make(discussService.findPostDetails(request, sort, principal.getName()));
+		return RestResponse.make(discussService.findPostDetails(request, pageable, principal.getName()));
 	}
 
 	@PostMapping("/posts/{postId}/vote")

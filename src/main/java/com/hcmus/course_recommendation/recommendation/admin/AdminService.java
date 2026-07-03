@@ -42,6 +42,10 @@ import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
+import com.hcmus.course_recommendation.discuss.model.Post;
+import com.hcmus.course_recommendation.discuss.model.PostComment;
+import com.hcmus.course_recommendation.discuss.repository.PostCommentRepository;
+import com.hcmus.course_recommendation.discuss.repository.PostRepository;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminAttributeRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminCourseRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminRatingRow;
@@ -73,6 +77,36 @@ public class AdminService {
 	private static final int RANDOM_RATING_MAX_SCORE = 5;
 	private static final double RATING_NOISE_SIGMA = 0.8;
 	private static final int JDBC_BATCH_SIZE = 1000;
+	private static final int RANDOM_POSTS_PER_COURSE_MIN = 3;
+	private static final int RANDOM_POSTS_PER_COURSE_MAX = 5;
+	private static final int RANDOM_COMMENTS_PER_POST_MIN = 3;
+	private static final int RANDOM_COMMENTS_PER_POST_MAX = 5;
+	private static final int RANDOM_REPLIES_PER_COMMENT_MIN = 0;
+	private static final int RANDOM_REPLIES_PER_COMMENT_MAX = 3;
+	private static final List<String> RANDOM_POST_CONTENT_TEMPLATES = List.of(
+		"Có ai đang học khóa \"%s\" không? Cho mình xin ít kinh nghiệm với.",
+		"Chia sẻ cảm nhận sau khi hoàn thành khóa \"%s\".",
+		"Mọi người thấy khóa \"%s\" thế nào, có đáng học không?",
+		"Mình gặp khó khăn ở phần cuối của khóa \"%s\", ai giúp mình với.",
+		"Tổng hợp tài liệu tham khảo thêm cho khóa \"%s\".");
+	// Fixed comment pool reused across every generated post/comment/reply instead of calling
+	// an external API.
+	private static final List<String> RANDOM_COMMENT_CONTENTS = List.of(
+		"Cảm ơn giảng viên, bài giảng rất hữu ích!",
+		"Nội dung khá hay nhưng hơi nhanh ở một số phần.",
+		"Mình thấy phần bài tập thực hành rất sát với thực tế.",
+		"Có ai gặp lỗi khi nộp bài tập không, mình cần giúp đỡ.",
+		"Khóa học này giúp mình hiểu rõ hơn nhiều kiến thức nền tảng.",
+		"Slide bài giảng hơi khó đọc, mong được cải thiện thêm.",
+		"Mình rất thích cách giảng viên giải thích ví dụ minh họa.",
+		"Không biết có tài liệu tham khảo thêm cho phần này không nhỉ?",
+		"Đồng ý với ý kiến trên, phần này thực sự khá khó hiểu.",
+		"Cảm ơn bạn đã chia sẻ, rất hữu ích cho mình!",
+		"Mình nghĩ nên có thêm ví dụ thực tế để dễ hình dung hơn.",
+		"Bài giảng tuyệt vời, mình học được rất nhiều điều mới.",
+		"Có bạn nào học chung có thể lập nhóm thảo luận không?",
+		"Phần kiểm tra cuối khóa hơi khó so với nội dung đã học.",
+		"Mình đã áp dụng được kiến thức này vào công việc thực tế.");
 	private final UserRepository userRepository;
 	private final CourseRepository courseRepository;
 	private final AttributeRepository attributeRepository;
@@ -84,6 +118,8 @@ public class AdminService {
 	private final RetrainService retrainService;
 	private final JdbcTemplate jdbcTemplate;
 	private final ObjectMapper objectMapper;
+	private final PostRepository postRepository;
+	private final PostCommentRepository postCommentRepository;
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminUserRow> getUsers(Long tenantId, Pageable pageable, String email, String fullName,
@@ -623,6 +659,96 @@ public class AdminService {
 		for (int i = 0; i < rows.size(); i += JDBC_BATCH_SIZE) {
 			jdbcTemplate.batchUpdate(sql, rows.subList(i, Math.min(i + JDBC_BATCH_SIZE, rows.size())));
 		}
+	}
+
+	@Transactional
+	public void generateRandomPostsAndComments(Long tenantId, Long seed) {
+		List<User> users = userRepository.findByTenantId(tenantId);
+		List<Course> courses = courseRepository.findByTenantId(tenantId);
+		if (users.isEmpty() || courses.isEmpty())
+			return;
+
+		Random random = seed != null ? new Random(seed) : new Random();
+
+		// Plan the whole structure (posts, comment counts, reply counts) up front so users/
+		// courses are looked up once here rather than once per post/comment later.
+		List<Post> postsToInsert = new ArrayList<>();
+		List<Integer> commentCountByPost = new ArrayList<>();
+		for (Course course : courses) {
+			int postCount = randomBetween(random, RANDOM_POSTS_PER_COURSE_MIN, RANDOM_POSTS_PER_COURSE_MAX);
+			for (int i = 0; i < postCount; i++) {
+				postsToInsert.add(Post.builder()
+					.algorithm(course.getAlgorithm())
+					.tenantId(tenantId)
+					.userId(randomUser(random, users).getId())
+					.content(randomPostContent(random, course.getName()))
+					.courseCode(course.getCode())
+					.build());
+				commentCountByPost.add(
+					randomBetween(random, RANDOM_COMMENTS_PER_POST_MIN, RANDOM_COMMENTS_PER_POST_MAX));
+			}
+		}
+		if (postsToInsert.isEmpty())
+			return;
+
+		int totalTopLevelComments = commentCountByPost.stream().mapToInt(Integer::intValue).sum();
+		List<Integer> replyCountByComment = new ArrayList<>(totalTopLevelComments);
+		for (int i = 0; i < totalTopLevelComments; i++) {
+			replyCountByComment.add(
+				randomBetween(random, RANDOM_REPLIES_PER_COMMENT_MIN, RANDOM_REPLIES_PER_COMMENT_MAX));
+		}
+		int totalReplies = replyCountByComment.stream().mapToInt(Integer::intValue).sum();
+
+		// Three bulk saveAll calls total (posts, top-level comments, replies) instead of one
+		// insert interleaved with per-row lookups.
+		postRepository.saveAll(postsToInsert);
+
+		List<PostComment> topLevelComments = new ArrayList<>(totalTopLevelComments);
+		int postIndex = 0;
+		for (Post post : postsToInsert) {
+			int count = commentCountByPost.get(postIndex++);
+			for (int i = 0; i < count; i++) {
+				topLevelComments.add(PostComment.builder()
+					.postId(post.getId())
+					.userId(randomUser(random, users).getId())
+					.content(randomComment(random))
+					.build());
+			}
+		}
+		postCommentRepository.saveAll(topLevelComments);
+
+		List<PostComment> replies = new ArrayList<>(totalReplies);
+		int commentIndex = 0;
+		for (PostComment comment : topLevelComments) {
+			int count = replyCountByComment.get(commentIndex++);
+			for (int i = 0; i < count; i++) {
+				replies.add(PostComment.builder()
+					.postId(comment.getPostId())
+					.parentCommentId(comment.getId())
+					.userId(randomUser(random, users).getId())
+					.content(randomComment(random))
+					.build());
+			}
+		}
+		if (!replies.isEmpty())
+			postCommentRepository.saveAll(replies);
+	}
+
+	private int randomBetween(Random random, int min, int max) {
+		return min + random.nextInt(max - min + 1);
+	}
+
+	private User randomUser(Random random, List<User> users) {
+		return users.get(random.nextInt(users.size()));
+	}
+
+	private String randomPostContent(Random random, String courseName) {
+		String template = RANDOM_POST_CONTENT_TEMPLATES.get(random.nextInt(RANDOM_POST_CONTENT_TEMPLATES.size()));
+		return String.format(template, courseName);
+	}
+
+	private String randomComment(Random random) {
+		return RANDOM_COMMENT_CONTENTS.get(random.nextInt(RANDOM_COMMENT_CONTENTS.size()));
 	}
 
 	private void scheduleRetrainAfterCommit(Long tenantId) {

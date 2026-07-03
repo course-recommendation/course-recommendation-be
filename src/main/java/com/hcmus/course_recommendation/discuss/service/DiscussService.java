@@ -4,10 +4,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.hcmus.course_recommendation.common.dto.PageResponse;
 import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
@@ -54,7 +58,8 @@ public class DiscussService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<PostDetail> findPostDetails(FindPostDetailsRequest request, Sort sort, String userId) {
+	public PageResponse<PostDetail> findPostDetails(FindPostDetailsRequest request, Pageable pageable,
+		String userId) {
 		List<Course> courses;
 		if (request.getCourseIdsRequest().isFetchAll()) {
 			courses = courseRepository.findByAlgorithmAndTenantId(request.getAlgorithm(), request.getTenantId());
@@ -71,13 +76,28 @@ public class DiscussService {
 			&& authorIdsRequest.getData() != null
 			&& !authorIdsRequest.getData().isEmpty();
 
-		var posts = filterByAuthor
-			? postRepository.findByAlgorithmAndTenantIdAndCourseCodeInAndUserIdIn(
-			request.getAlgorithm(), request.getTenantId(), courseIds, authorIdsRequest.getData(), sort)
-			: postRepository.findByAlgorithmAndTenantIdAndCourseCodeIn(
-			request.getAlgorithm(), request.getTenantId(), courseIds, sort);
+		// Many posts share the same createdAt instant, so sorting on it alone is not a total
+		// order: paging over it non-deterministically duplicates/skips rows. Append id as a
+		// tiebreaker to guarantee a stable order across pages.
+		var stableSort = pageable.getSort().and(Sort.by(Sort.Direction.DESC, "id"));
+		pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), stableSort);
 
-		return toPostDetails(request.getAlgorithm(), request.getTenantId(), posts, userId);
+		Page<Post> postsPage = filterByAuthor
+			? postRepository.findByAlgorithmAndTenantIdAndCourseCodeInAndUserIdIn(
+			request.getAlgorithm(), request.getTenantId(), courseIds, authorIdsRequest.getData(), pageable)
+			: postRepository.findByAlgorithmAndTenantIdAndCourseCodeIn(
+			request.getAlgorithm(), request.getTenantId(), courseIds, pageable);
+
+		var postDetails = toPostDetails(request.getAlgorithm(), request.getTenantId(), postsPage.getContent(),
+			userId);
+
+		return PageResponse.<PostDetail>builder()
+			.content(postDetails)
+			.totalElements(postsPage.getTotalElements())
+			.totalPages(postsPage.getTotalPages())
+			.page(postsPage.getNumber())
+			.size(postsPage.getSize())
+			.build();
 	}
 
 	@Transactional(readOnly = true)
