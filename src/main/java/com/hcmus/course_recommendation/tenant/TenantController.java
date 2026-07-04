@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.hcmus.course_recommendation.common.RestResponse;
 import com.hcmus.course_recommendation.course.model.Algorithm;
 import com.hcmus.course_recommendation.tenant.TenantId;
+import com.hcmus.course_recommendation.tenant.dto.TenantNicknameResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,5 +22,17 @@ public class TenantController {
 			return RestResponse.make(Algorithm.FS);
 		}
 		return RestResponse.make(tenant.getAlgorithm());
+	}
+
+	@GetMapping("/tenant/nickname")
+	public RestResponse<TenantNicknameResponse> getTenantNickname(@TenantId Long tenantId) {
+		Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
+		if (tenant == null) {
+			return RestResponse.make(TenantNicknameResponse.builder().showNickname(false).build());
+		}
+		return RestResponse.make(TenantNicknameResponse.builder()
+			.nickname(tenant.getNickname())
+			.showNickname(tenant.isShowNickname())
+			.build());
 	}
 }

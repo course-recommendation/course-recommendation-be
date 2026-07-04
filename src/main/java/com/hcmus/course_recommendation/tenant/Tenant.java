@@ -33,4 +33,8 @@ public class Tenant {
 	private Algorithm algorithm;
 
 	private boolean systemEnabled;
+
+	private String nickname;
+
+	private boolean showNickname;
 }
