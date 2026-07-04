@@ -1,6 +1,10 @@
 package com.hcmus.course_recommendation.recommendation.admin;
 
 import java.io.IOException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -22,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -42,10 +47,6 @@ import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
-import com.hcmus.course_recommendation.discuss.model.Post;
-import com.hcmus.course_recommendation.discuss.model.PostComment;
-import com.hcmus.course_recommendation.discuss.repository.PostCommentRepository;
-import com.hcmus.course_recommendation.discuss.repository.PostRepository;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminAttributeRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminCourseRow;
 import com.hcmus.course_recommendation.recommendation.admin.dto.AdminRatingRow;
@@ -118,8 +119,6 @@ public class AdminService {
 	private final RetrainService retrainService;
 	private final JdbcTemplate jdbcTemplate;
 	private final ObjectMapper objectMapper;
-	private final PostRepository postRepository;
-	private final PostCommentRepository postCommentRepository;
 
 	@Transactional(readOnly = true)
 	public PageResponse<AdminUserRow> getUsers(Long tenantId, Pageable pageable, String email, String fullName,
@@ -672,23 +671,22 @@ public class AdminService {
 
 		// Plan the whole structure (posts, comment counts, reply counts) up front so users/
 		// courses are looked up once here rather than once per post/comment later.
-		List<Post> postsToInsert = new ArrayList<>();
+		List<Object[]> postRows = new ArrayList<>();
 		List<Integer> commentCountByPost = new ArrayList<>();
 		for (Course course : courses) {
 			int postCount = randomBetween(random, RANDOM_POSTS_PER_COURSE_MIN, RANDOM_POSTS_PER_COURSE_MAX);
 			for (int i = 0; i < postCount; i++) {
-				postsToInsert.add(Post.builder()
-					.algorithm(course.getAlgorithm())
-					.tenantId(tenantId)
-					.userId(randomUser(random, users).getId())
-					.content(randomPostContent(random, course.getName()))
-					.courseCode(course.getCode())
-					.build());
+				postRows.add(new Object[] {
+					course.getAlgorithm() != null ? course.getAlgorithm().name() : null,
+					tenantId,
+					randomUser(random, users).getId(),
+					randomPostContent(random, course.getName()),
+					course.getCode()});
 				commentCountByPost.add(
 					randomBetween(random, RANDOM_COMMENTS_PER_POST_MIN, RANDOM_COMMENTS_PER_POST_MAX));
 			}
 		}
-		if (postsToInsert.isEmpty())
+		if (postRows.isEmpty())
 			return;
 
 		int totalTopLevelComments = commentCountByPost.stream().mapToInt(Integer::intValue).sum();
@@ -697,41 +695,72 @@ public class AdminService {
 			replyCountByComment.add(
 				randomBetween(random, RANDOM_REPLIES_PER_COMMENT_MIN, RANDOM_REPLIES_PER_COMMENT_MAX));
 		}
-		int totalReplies = replyCountByComment.stream().mapToInt(Integer::intValue).sum();
 
-		// Three bulk saveAll calls total (posts, top-level comments, replies) instead of one
-		// insert interleaved with per-row lookups.
-		postRepository.saveAll(postsToInsert);
+		// Batch-insert via raw JDBC instead of JPA saveAll; the generated ids come back in
+		// insertion order (MySQL allocates auto_increment ids contiguously per batch), so
+		// children (comments, replies) can be built once their parent ids are known.
+		List<Long> postIds = batchInsertReturningIds("""
+			INSERT INTO post (algorithm, tenant_id, user_id, content, course_code)
+			VALUES (?, ?, ?, ?, ?)
+			""", postRows);
 
-		List<PostComment> topLevelComments = new ArrayList<>(totalTopLevelComments);
+		List<Object[]> commentRows = new ArrayList<>(totalTopLevelComments);
 		int postIndex = 0;
-		for (Post post : postsToInsert) {
+		for (Long postId : postIds) {
 			int count = commentCountByPost.get(postIndex++);
 			for (int i = 0; i < count; i++) {
-				topLevelComments.add(PostComment.builder()
-					.postId(post.getId())
-					.userId(randomUser(random, users).getId())
-					.content(randomComment(random))
-					.build());
+				commentRows.add(new Object[] {postId, null, randomUser(random, users).getId(), randomComment(random)});
 			}
 		}
-		postCommentRepository.saveAll(topLevelComments);
+		List<Long> commentIds = batchInsertReturningIds("""
+			INSERT INTO post_comment (post_id, parent_comment_id, user_id, content)
+			VALUES (?, ?, ?, ?)
+			""", commentRows);
 
-		List<PostComment> replies = new ArrayList<>(totalReplies);
-		int commentIndex = 0;
-		for (PostComment comment : topLevelComments) {
-			int count = replyCountByComment.get(commentIndex++);
-			for (int i = 0; i < count; i++) {
-				replies.add(PostComment.builder()
-					.postId(comment.getPostId())
-					.parentCommentId(comment.getId())
-					.userId(randomUser(random, users).getId())
-					.content(randomComment(random))
-					.build());
+		List<Object[]> replyRows = new ArrayList<>();
+		for (int i = 0; i < commentIds.size(); i++) {
+			Long postId = (Long) commentRows.get(i)[0];
+			Long commentId = commentIds.get(i);
+			int count = replyCountByComment.get(i);
+			for (int j = 0; j < count; j++) {
+				replyRows.add(new Object[] {postId, commentId, randomUser(random, users).getId(), randomComment(random)});
 			}
 		}
-		if (!replies.isEmpty())
-			postCommentRepository.saveAll(replies);
+		if (!replyRows.isEmpty()) {
+			batchInsertReturningIds("""
+				INSERT INTO post_comment (post_id, parent_comment_id, user_id, content)
+				VALUES (?, ?, ?, ?)
+				""", replyRows);
+		}
+	}
+
+	// Runs the batch in chunks of JDBC_BATCH_SIZE and returns the generated ids in
+	// insertion order, since Spring's JdbcTemplate.batchUpdate does not expose them.
+	private List<Long> batchInsertReturningIds(String sql, List<Object[]> rows) {
+		List<Long> ids = new ArrayList<>(rows.size());
+		jdbcTemplate.execute((ConnectionCallback<Void>) con -> {
+			for (int start = 0; start < rows.size(); start += JDBC_BATCH_SIZE) {
+				List<Object[]> chunk = rows.subList(start, Math.min(start + JDBC_BATCH_SIZE, rows.size()));
+				try (PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+					for (Object[] row : chunk) {
+						for (int i = 0; i < row.length; i++) {
+							if (row[i] == null)
+								ps.setNull(i + 1, Types.NULL);
+							else
+								ps.setObject(i + 1, row[i]);
+						}
+						ps.addBatch();
+					}
+					ps.executeBatch();
+					try (ResultSet keys = ps.getGeneratedKeys()) {
+						while (keys.next())
+							ids.add(keys.getLong(1));
+					}
+				}
+			}
+			return null;
+		});
+		return ids;
 	}
 
 	private int randomBetween(Random random, int min, int max) {
