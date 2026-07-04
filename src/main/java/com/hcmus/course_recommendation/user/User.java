@@ -49,6 +49,6 @@ public class User implements Serializable {
 	private LocalDateTime createdAt;
 
 	public String getAvatarUrl() {
-		return String.format("https://picsum.photos/seed/%s/1600/900", id);
+		return String.format("https://picsum.photos/seed/%s/1600/900", email);
 	}
 }
