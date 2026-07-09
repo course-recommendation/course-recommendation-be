@@ -1,6 +1,7 @@
 package com.hcmus.course_recommendation.tenant;
 
 import java.net.URI;
+import java.util.Objects;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
@@ -34,8 +35,8 @@ public class TenantIdArgumentResolver implements HandlerMethodArgumentResolver {
 			throw new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND);
 		}
 
-		String origin = request.getHeader("Origin");
-		if (origin == null || origin.isBlank()) {
+		String origin = Objects.requireNonNullElse(request.getHeader("Referer"), request.getHeader("Origin"));
+		if (origin.isBlank()) {
 			throw new NotFoundException(GlobalErrorCode.TENANT_NOT_FOUND);
 		}
 
