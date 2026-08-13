@@ -13,5 +13,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class UpsertAttributeRequest {
 	private String value;
+	private String lowLabel;
+	private String highLabel;
 	private Algorithm algorithm;
 }

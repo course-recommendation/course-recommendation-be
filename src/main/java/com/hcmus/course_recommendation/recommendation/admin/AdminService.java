@@ -266,14 +266,16 @@ public class AdminService {
 			return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
 		};
 		Page<Attribute> page = attributeRepository.findAll(spec, pageable);
-		return PageResponse.from(page.map(a -> new AdminAttributeRow(a.getId(), a.getValue(), a.getAlgorithm(),
-			a.getCreatedAt())));
+		return PageResponse.from(page.map(a -> new AdminAttributeRow(a.getId(), a.getValue(), a.getLowLabel(),
+			a.getHighLabel(), a.getAlgorithm(), a.getCreatedAt())));
 	}
 
 	@Transactional
 	public void createAttribute(Long tenantId, UpsertAttributeRequest request) {
 		var attr = Attribute.builder()
 			.value(request.getValue())
+			.lowLabel(request.getLowLabel())
+			.highLabel(request.getHighLabel())
 			.algorithm(request.getAlgorithm() != null ? request.getAlgorithm() : Algorithm.FS)
 			.tenantId(tenantId)
 			.build();
@@ -290,6 +292,10 @@ public class AdminService {
 			.orElseThrow(() -> new NotFoundException(GlobalErrorCode.NOT_FOUND));
 		if (request.getValue() != null)
 			attr.setValue(request.getValue());
+		if (request.getLowLabel() != null)
+			attr.setLowLabel(request.getLowLabel());
+		if (request.getHighLabel() != null)
+			attr.setHighLabel(request.getHighLabel());
 		if (request.getAlgorithm() != null)
 			attr.setAlgorithm(request.getAlgorithm());
 		attributeRepository.save(attr);
@@ -327,6 +333,8 @@ public class AdminService {
 					continue;
 				attributesToSave.add(Attribute.builder()
 					.value(value)
+					.lowLabel(getCellAsString(row.getCell(1)))
+					.highLabel(getCellAsString(row.getCell(2)))
 					.algorithm(algorithm)
 					.tenantId(tenantId)
 					.build());

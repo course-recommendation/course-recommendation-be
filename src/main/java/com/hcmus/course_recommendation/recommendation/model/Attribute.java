@@ -34,6 +34,11 @@ public class Attribute implements Serializable {
 	private Algorithm algorithm;
 	private Long tenantId;
 	private String value;
+	// Nhãn hai cực của thang đo: lowLabel ứng với điểm 1, highLabel ứng với điểm 5
+	@Column(name = "low_label")
+	private String lowLabel;
+	@Column(name = "high_label")
+	private String highLabel;
 
 	@CreationTimestamp
 	@Column(name = "created_at", updatable = false)

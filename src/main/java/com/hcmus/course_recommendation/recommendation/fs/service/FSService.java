@@ -66,6 +66,7 @@ public class FSService {
 
 		return ServerFSRecommendationResult.builder()
 			.id(id)
+			.attributeToPreferenceConfigure(recommendationResult.attributeToPreferenceConfigure())
 			.topCourseDetail(courseIdToCourseDetail.get(recommendationResult.topItemId()))
 			.categoryDetails(recommendationResult
 				.categoryDetails()
