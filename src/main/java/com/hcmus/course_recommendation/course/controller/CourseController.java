@@ -17,6 +17,7 @@ import com.hcmus.course_recommendation.course.dto.GetCourseDetailsRequest;
 import com.hcmus.course_recommendation.course.dto.GetCoursesOfUserRequest;
 import com.hcmus.course_recommendation.course.dto.GetCoursesRequest;
 import com.hcmus.course_recommendation.course.dto.RateCourseRequest;
+import com.hcmus.course_recommendation.course.dto.RateCourseSatisfactionRequest;
 import com.hcmus.course_recommendation.course.dto.UpdateUserCourseStatusRequest;
 import com.hcmus.course_recommendation.course.dto.UpdateUserCourseStatusesRequest;
 import com.hcmus.course_recommendation.course.model.Course;
@@ -91,6 +92,14 @@ public class CourseController {
 		@RequestBody RateCourseRequest request) {
 		courseService.rateCourse(principal.getName(), tenantId, courseId, request.getAttributeId(),
 			request.getScore());
+
+		return RestResponse.make();
+	}
+
+	@PutMapping("/courses/{courseId}/satisfaction")
+	public RestResponse<Void> rateCourseSatisfaction(@PathVariable Long courseId, Principal principal,
+		@TenantId Long tenantId, @RequestBody RateCourseSatisfactionRequest request) {
+		courseService.rateCourseSatisfaction(principal.getName(), tenantId, courseId, request.getScore());
 
 		return RestResponse.make();
 	}

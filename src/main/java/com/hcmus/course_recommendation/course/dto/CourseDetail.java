@@ -11,6 +11,8 @@ import lombok.Builder;
 public record CourseDetail(
 	Course course,
 	UserCourseStatusEnum userCourseStatus,
-	Map<Long, Integer> userAttributeIdToRatingScore
+	Map<Long, Integer> userAttributeIdToRatingScore,
+	/** Overall satisfaction the user gave this course, rounded to whole stars; null if not rated yet. */
+	Integer userSatisfactionScore
 ) {
 }

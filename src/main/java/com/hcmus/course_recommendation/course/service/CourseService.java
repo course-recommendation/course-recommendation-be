@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,11 +25,13 @@ import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.model.FSItemSentiment;
 import com.hcmus.course_recommendation.course.model.FsCourseSentiment;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
+import com.hcmus.course_recommendation.course.model.UserCourseSatisfaction;
 import com.hcmus.course_recommendation.course.model.UserCourseStatus;
 import com.hcmus.course_recommendation.course.model.UserCourseStatusEnum;
 import com.hcmus.course_recommendation.course.repository.CourseRepository;
 import com.hcmus.course_recommendation.course.repository.FsCourseSentimentRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
+import com.hcmus.course_recommendation.course.repository.UserCourseSatisfactionRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseStatusRepository;
 import com.hcmus.course_recommendation.common.exception.GlobalErrorCode;
 import com.hcmus.course_recommendation.common.exception.NotFoundException;
@@ -39,9 +42,14 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class CourseService {
+	/** Bounds of the 1-5 star scale shared by the attribute ratings and the overall satisfaction. */
+	static final int MIN_STAR = 1;
+	static final int MAX_STAR = 5;
+
 	private final UserCourseStatusRepository userCourseStatusRepository;
 	private final CourseRepository courseRepository;
 	private final UserCourseRatingRepository userCourseRatingRepository;
+	private final UserCourseSatisfactionRepository userCourseSatisfactionRepository;
 	private final FsCourseSentimentRepository fsCourseSentimentRepository;
 
 	@Transactional
@@ -122,6 +130,11 @@ public class CourseService {
 		var courseIdToUserCourseRatings = userCourseRatings.stream()
 			.collect(Collectors.groupingBy(UserCourseRating::getCourseId));
 
+		var courseIdToSatisfaction = userCourseSatisfactionRepository.findByUserId(userId).stream()
+			.filter(satisfaction -> Objects.nonNull(satisfaction.getScore()))
+			.collect(Collectors.toMap(UserCourseSatisfaction::getCourseId, UserCourseSatisfaction::getScore,
+				(existing, ignored) -> existing));
+
 		return courses.stream()
 			.map(course -> CourseDetail.builder()
 				.course(course)
@@ -131,8 +144,22 @@ public class CourseService {
 				.userAttributeIdToRatingScore(courseIdToUserCourseRatings.getOrDefault(course.getId(), List.of())
 					.stream()
 					.collect(Collectors.toMap(UserCourseRating::getAttributeId, UserCourseRating::getScore)))
+				.userSatisfactionScore(toStarScore(courseIdToSatisfaction.get(course.getId())))
 				.build())
 			.toList();
+	}
+
+	/**
+	 * Constrains a stored satisfaction score to the star scale the UI can display.
+	 *
+	 * <p>Values are written as whole stars by both the rating form and the synthetic generator, so this
+	 * only guards against rows predating that (V7 rounds them in place) or written outside the service.
+	 */
+	public static Integer toStarScore(Integer score) {
+		if (score == null) {
+			return null;
+		}
+		return Math.clamp(score, MIN_STAR, MAX_STAR);
 	}
 
 	@Transactional(readOnly = true)
@@ -245,6 +272,45 @@ public class CourseService {
 				.score(score)
 				.build());
 		}
+	}
+
+	/**
+	 * Records how satisfied a user was with a course overall, as a whole 1-5 star.
+	 *
+	 * <p>This is the only valenced rating the system collects, and it is what TriRank uses as the
+	 * user-item matrix R (see {@code TriRankService.buildRatingFileContent}). The attribute scores
+	 * cannot serve that role: they sit on descriptive bipolar axes where neither end is better, so
+	 * their average carries no information about liking - measured correlation with satisfaction on the
+	 * generated dataset was +0.013.
+	 *
+	 * <p>Stored for every tenant regardless of algorithm. Feature Sentiment does not read it today, but
+	 * collecting it there too keeps the two tenants' rating forms identical and leaves the data in place
+	 * should FS ever want it.
+	 */
+	@Transactional
+	public void rateCourseSatisfaction(String userId, Long tenantId, Long courseId, Integer score) {
+		if (!courseRepository.existsByIdAndTenantId(courseId, tenantId)) {
+			throw new NotFoundException(GlobalErrorCode.NOT_FOUND, courseId);
+		}
+
+		var oldSatisfaction = userCourseSatisfactionRepository.findByUserIdAndCourseId(userId, courseId);
+
+		// Mirrors rateCourse: 0 is what the star widget reports when nothing is selected, and clearing a
+		// rating has to remove the row rather than persist a 0 that is off the 1-5 scale.
+		if (score == null || score == 0) {
+			oldSatisfaction.ifPresent(satisfaction -> userCourseSatisfactionRepository.deleteById(
+				satisfaction.getId()));
+			return;
+		}
+
+		var clampedScore = Math.clamp(score, MIN_STAR, MAX_STAR);
+		userCourseSatisfactionRepository.save(oldSatisfaction
+			.map(satisfaction -> satisfaction.toBuilder().score(clampedScore).build())
+			.orElseGet(() -> UserCourseSatisfaction.builder()
+				.userId(userId)
+				.courseId(courseId)
+				.score(clampedScore)
+				.build()));
 	}
 
 	@Transactional(readOnly = true)

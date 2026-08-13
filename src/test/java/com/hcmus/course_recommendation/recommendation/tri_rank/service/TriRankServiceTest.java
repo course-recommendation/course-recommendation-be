@@ -33,15 +33,17 @@ class TriRankServiceTest {
 			rating("USER_A", 2L, 3L, 3),
 			rating("USER_B", 1L, 3L, 5));
 		var satisfaction = Map.of(
-			new TriRankService.UserCourseKey("USER_A", "B008DJIGR4"), 4.5,
-			new TriRankService.UserCourseKey("USER_A", "B0094AHQ6S"), 1.25,
-			new TriRankService.UserCourseKey("USER_B", "B008DJIGR4"), 2.0);
+			new TriRankService.UserCourseKey("USER_A", "B008DJIGR4"), 5,
+			new TriRankService.UserCourseKey("USER_A", "B0094AHQ6S"), 1,
+			new TriRankService.UserCourseKey("USER_B", "B008DJIGR4"), 2);
 
 		var content = triRankService.buildRatingFileContent(userCourseRatings, COURSE_ID_TO_CODE, satisfaction);
 
+		// The score is a whole star, but the column keeps its fixed six decimals so that rows using the
+		// fractional fallback below line up with it.
 		assertEquals(String.join("\n",
-			"USER_A,B008DJIGR4,4.500000,1400630400",
-			"USER_A,B0094AHQ6S,1.250000,1400630400",
+			"USER_A,B008DJIGR4,5.000000,1400630400",
+			"USER_A,B0094AHQ6S,1.000000,1400630400",
 			"USER_B,B008DJIGR4,2.000000,1400630400"), content);
 	}
 

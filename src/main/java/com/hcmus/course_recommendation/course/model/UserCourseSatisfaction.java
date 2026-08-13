@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Overall satisfaction of a user with a course, on the same 1-5 scale as the attribute ratings.
+ * Overall satisfaction of a user with a course, as a whole 1-5 star.
  *
  * <p>Unlike {@link UserCourseRating}, whose attributes are descriptive bipolar axes where neither
  * pole is "better", this is a plain valenced rating and is therefore what belongs in TriRank's
@@ -34,7 +34,7 @@ public class UserCourseSatisfaction {
 	private Long id;
 	private String userId;
 	private Long courseId;
-	private Double score;
+	private Integer score;
 
 	@CreationTimestamp
 	@Column(name = "created_at", updatable = false)

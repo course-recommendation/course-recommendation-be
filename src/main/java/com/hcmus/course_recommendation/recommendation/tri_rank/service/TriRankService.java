@@ -121,10 +121,22 @@ public class TriRankService {
 	 * average had SD 0.49 with 67% of all values inside [2.5, 3.5], so R carried almost no signal.
 	 *
 	 * <p>Rows without a satisfaction score fall back to the old average so that datasets predating
-	 * {@code user_course_satisfaction} still export.
+	 * {@code user_course_satisfaction} still export. The fallback is deliberately kept rather than
+	 * dropped: it produces a varying value, whereas a constant would make {@code min_rating} equal
+	 * {@code max_rating} and the score rescaling in the Python model would flatten the whole ranking.
+	 * The coverage is logged so it is visible when no pair needs the fallback any more.
 	 */
 	String buildRatingFileContent(List<UserCourseRating> userCourseRatings, Map<Long, String> courseIdToCourseCode,
-		Map<UserCourseKey, Double> satisfactionByUserCourse) {
+		Map<UserCourseKey, Integer> satisfactionByUserCourse) {
+		var userCourseKeys = groupByUserCourse(userCourseRatings, courseIdToCourseCode).keySet();
+		var missing = userCourseKeys.stream().filter(key -> !satisfactionByUserCourse.containsKey(key)).count();
+		if (missing > 0) {
+			log.warn("TriRank rating file: {} of {} user-course pairs have no overall satisfaction score and fall "
+				+ "back to the attribute average, which carries no information about liking (measured "
+				+ "correlation with satisfaction: +0.013). Those students still need to give a star rating.",
+				missing, userCourseKeys.size());
+		}
+
 		return groupByUserCourse(userCourseRatings, courseIdToCourseCode).entrySet().stream()
 			.map(entry -> {
 				var satisfaction = satisfactionByUserCourse.get(entry.getKey());

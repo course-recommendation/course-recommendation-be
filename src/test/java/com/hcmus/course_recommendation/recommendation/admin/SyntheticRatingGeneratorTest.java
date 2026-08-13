@@ -115,6 +115,24 @@ class SyntheticRatingGeneratorTest {
 		assertTrue(r < -0.5, "satisfaction should fall as taste mismatch grows, but r = " + r);
 	}
 
+	/**
+	 * A student can only click a whole star, so generated rows have to look the same. The earlier version
+	 * emitted the continuous latent value, which produced scores like 3.47 that no real row could hold.
+	 * All five stars must also actually occur, or R would be narrower than the scale it claims to use.
+	 */
+	@Test
+	void satisfactionShouldBeAWholeStarCoveringTheFullScale() {
+		var starsUsed = new java.util.TreeSet<Integer>();
+		for (var satisfaction : dataset.satisfactions()) {
+			starsUsed.add(satisfaction.score());
+		}
+
+		assertEquals(
+			java.util.List.of(SyntheticRatingGenerator.MIN_SCORE, 2, 3, 4, SyntheticRatingGenerator.MAX_SCORE),
+			java.util.List.copyOf(starsUsed),
+			"satisfaction should use every whole star from 1 to 5, but saw " + starsUsed);
+	}
+
 	/** Real datasets are long-tailed in both user activity and item popularity; a flat 20 is not. */
 	@Test
 	void activityAndPopularityShouldBeLongTailed() {

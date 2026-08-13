@@ -10,6 +10,7 @@ import com.hcmus.course_recommendation.common.event.DeletedResourceApplicationEv
 import com.hcmus.course_recommendation.course.model.Course;
 import com.hcmus.course_recommendation.course.repository.FsCourseSentimentRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseRatingRepository;
+import com.hcmus.course_recommendation.course.repository.UserCourseSatisfactionRepository;
 import com.hcmus.course_recommendation.course.repository.UserCourseStatusRepository;
 import com.hcmus.course_recommendation.recommendation.admin.RetrainService;
 import com.hcmus.course_recommendation.recommendation.model.Attribute;
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ResourceDeletedEventListener {
 
 	private final UserCourseRatingRepository ratingRepository;
+	private final UserCourseSatisfactionRepository satisfactionRepository;
 	private final UserCourseStatusRepository statusRepository;
 	private final UserPreferenceRepository preferenceRepository;
 	private final RecommendationResultRepository recommendationResultRepository;
@@ -45,6 +47,9 @@ public class ResourceDeletedEventListener {
 	public void onCourseDeleted(DeletedResourceApplicationEvent<Course> event) {
 		Course course = event.getData();
 		ratingRepository.deleteByCourseId(course.getId());
+		// The satisfaction row is keyed by (user, course) only, so leaving it behind would let a course id
+		// reused by auto-increment inherit a previous course's scores.
+		satisfactionRepository.deleteByCourseId(course.getId());
 		statusRepository.deleteByCourseId(course.getId());
 		fsCourseSentimentRepository.findByCourseId(course.getId()).ifPresent(fsCourseSentimentRepository::delete);
 		scheduleRetrainAfterCommit(course.getTenantId());
@@ -55,6 +60,7 @@ public class ResourceDeletedEventListener {
 	public void onUserDeleted(DeletedResourceApplicationEvent<User> event) {
 		User user = event.getData();
 		ratingRepository.deleteByUserId(user.getId());
+		satisfactionRepository.deleteByUserId(user.getId());
 		statusRepository.deleteByUserId(user.getId());
 		preferenceRepository.deleteByUserId(user.getId());
 		recommendationResultRepository.deleteByUserId(user.getId());

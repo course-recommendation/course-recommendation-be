@@ -1,6 +1,7 @@
 package com.hcmus.course_recommendation.course.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,4 +19,12 @@ public interface UserCourseSatisfactionRepository extends JpaRepository<UserCour
 		AND c.tenantId = :tenantId
 		""")
 	List<UserCourseSatisfaction> findByAlgorithmAndTenantId(Algorithm algorithm, Long tenantId);
+
+	List<UserCourseSatisfaction> findByUserId(String userId);
+
+	Optional<UserCourseSatisfaction> findByUserIdAndCourseId(String userId, Long courseId);
+
+	void deleteByCourseId(Long courseId);
+
+	void deleteByUserId(String userId);
 }

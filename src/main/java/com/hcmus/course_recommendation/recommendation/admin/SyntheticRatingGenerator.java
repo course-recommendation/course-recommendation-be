@@ -79,8 +79,15 @@ final class SyntheticRatingGenerator {
 	record AttributeRating(int userIndex, int courseIndex, int attributeIndex, int score) {
 	}
 
-	/** One generated overall-satisfaction rating of a course, by index. */
-	record Satisfaction(int userIndex, int courseIndex, double score) {
+	/**
+	 * One generated overall-satisfaction rating of a course, by index.
+	 *
+	 * <p>A whole 1-5 star, like {@link AttributeRating}, because that is all a student can express
+	 * through the rating form. An earlier version kept the continuous latent value on the theory that a
+	 * finer-grained R is more informative; that was backwards - it made the generated data less like the
+	 * data the application actually collects, and no real row would ever look like it.
+	 */
+	record Satisfaction(int userIndex, int courseIndex, int score) {
 	}
 
 	/**
@@ -125,7 +132,7 @@ final class SyntheticRatingGenerator {
 					- SATISFACTION_MISMATCH_SLOPE * mismatch(userTaste[user], courseProfile[course])
 					+ random.nextGaussian() * SATISFACTION_NOISE_SIGMA;
 				satisfactions.add(new Satisfaction(user, course,
-					Math.clamp(satisfaction, (double)MIN_SCORE, (double)MAX_SCORE)));
+					Math.clamp(Math.round(satisfaction), MIN_SCORE, MAX_SCORE)));
 			}
 		}
 		return new Dataset(attributeRatings, satisfactions, userTaste, courseProfile);
