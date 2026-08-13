@@ -23,15 +23,24 @@ class TriRankPreferenceEncodingTest {
 	private final TriRankRecommendationService service =
 		new TriRankRecommendationService(null, null, null, null, null, null, null);
 
+	/**
+	 * The rejected pole gets a negative weight, so a course sitting there is pushed down rather than
+	 * merely not pulled up. Without that, an item at the wrong end of an axis lost nothing and could
+	 * hold rank 1 on the strength of other axes.
+	 */
 	@Test
-	void theLowExtremeShouldPutFullWeightOnTheLowPoleOnly() {
-		assertEquals(List.of(List.of("Mức độ thực tiễn@low", 1.0)),
+	void theLowExtremeShouldRewardTheLowPoleAndPenaliseTheHighOne() {
+		assertEquals(List.of(
+				List.of("Mức độ thực tiễn@low", 1.0),
+				List.of("Mức độ thực tiễn@high", -1.0)),
 			service.toPolePreferences(Map.of("Mức độ thực tiễn", 1.0)));
 	}
 
 	@Test
-	void theHighExtremeShouldPutFullWeightOnTheHighPoleOnly() {
-		assertEquals(List.of(List.of("Mức độ thực tiễn@high", 1.0)),
+	void theHighExtremeShouldRewardTheHighPoleAndPenaliseTheLowOne() {
+		assertEquals(List.of(
+				List.of("Mức độ thực tiễn@low", -1.0),
+				List.of("Mức độ thực tiễn@high", 1.0)),
 			service.toPolePreferences(Map.of("Mức độ thực tiễn", 5.0)));
 	}
 
@@ -43,9 +52,13 @@ class TriRankPreferenceEncodingTest {
 
 	@Test
 	void intermediateTargetsShouldLeanPartwayTowardsOnePole() {
-		assertEquals(List.of(List.of("Kiểu tư duy@low", 0.5)),
+		assertEquals(List.of(
+				List.of("Kiểu tư duy@low", 0.5),
+				List.of("Kiểu tư duy@high", -0.5)),
 			service.toPolePreferences(Map.of("Kiểu tư duy", 2.0)));
-		assertEquals(List.of(List.of("Kiểu tư duy@high", 0.5)),
+		assertEquals(List.of(
+				List.of("Kiểu tư duy@low", -0.5),
+				List.of("Kiểu tư duy@high", 0.5)),
 			service.toPolePreferences(Map.of("Kiểu tư duy", 4.0)));
 	}
 
@@ -82,19 +95,30 @@ class TriRankPreferenceEncodingTest {
 		var lowPreferences = service.toPolePreferences(allLow);
 		var highPreferences = service.toPolePreferences(allHigh);
 
-		assertEquals(attributes.size(), lowPreferences.size());
-		assertEquals(attributes.size(), highPreferences.size());
-		// Disjoint aspect names, so no amount of rescaling can make the two requests equivalent.
+		// Both poles of every axis are now weighted, one positively and one negatively.
+		assertEquals(2 * attributes.size(), lowPreferences.size());
+		assertEquals(2 * attributes.size(), highPreferences.size());
+		// No shared (aspect, weight) pair, so no rescaling can make the two requests equivalent.
 		assertTrue(lowPreferences.stream().noneMatch(highPreferences::contains));
-		assertTrue(lowPreferences.stream().allMatch(preference -> preference.getFirst().toString().endsWith("@low")));
-		assertTrue(highPreferences.stream().allMatch(preference -> preference.getFirst().toString().endsWith("@high")));
+		// Every axis is asked for in the opposite direction in the two requests.
+		attributes.forEach(attribute -> {
+			assertTrue(lowPreferences.contains(List.<Object>of(attribute + "@low", 1.0)));
+			assertTrue(highPreferences.contains(List.<Object>of(attribute + "@low", -1.0)));
+		});
 	}
 
 	@Test
 	void weightsShouldStayWithinRangeForTargetsOffTheScale() {
 		assertEquals(1.0, TriRankAspects.lowPoleWeight(0.0));
-		assertEquals(0.0, TriRankAspects.highPoleWeight(0.0));
-		assertEquals(0.0, TriRankAspects.lowPoleWeight(6.0));
+		assertEquals(-1.0, TriRankAspects.highPoleWeight(0.0));
+		assertEquals(-1.0, TriRankAspects.lowPoleWeight(6.0));
 		assertEquals(1.0, TriRankAspects.highPoleWeight(6.0));
+	}
+
+	/** The midpoint has to be the exact crossover, or the default would nudge the ranking. */
+	@Test
+	void bothPoleWeightsShouldVanishAtTheMidpoint() {
+		assertEquals(0.0, TriRankAspects.lowPoleWeight(TriRankAspects.NEUTRAL_SCORE));
+		assertEquals(0.0, TriRankAspects.highPoleWeight(TriRankAspects.NEUTRAL_SCORE));
 	}
 }

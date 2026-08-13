@@ -133,11 +133,12 @@ public class TriRankRecommendationService {
 	/**
 	 * Splits each bipolar target onto the two pole aspects TriRank can actually represent.
 	 *
-	 * <p>A target of 1 puts full weight on {@code <attribute>@low}, 5 on {@code <attribute>@high}, and
-	 * 3 - the neutral midpoint, and the form's default - puts weight on neither, which is what "no
-	 * leaning either way" should mean. An attribute the caller omitted, or sent as null, likewise
-	 * contributes nothing; previously a null was coerced to 0.0 and ended up indistinguishable from an
-	 * explicit request for the low pole.
+	 * <p>A target of 1 puts full positive weight on {@code <attribute>@low} and full negative weight on
+	 * {@code <attribute>@high}, so a course at the rejected end is actively pushed down rather than
+	 * merely not pulled up. A target of 3 - the neutral midpoint, and the form's default - weights
+	 * neither pole, which is what "no leaning either way" should mean. An attribute the caller omitted,
+	 * or sent as null, likewise contributes nothing; previously a null was coerced to 0.0 and ended up
+	 * indistinguishable from an explicit request for the low pole.
 	 *
 	 * @see TriRankAspects
 	 */
@@ -152,11 +153,11 @@ public class TriRankRecommendationService {
 				return;
 			}
 			var lowWeight = TriRankAspects.lowPoleWeight(target);
-			if (lowWeight > 0) {
+			if (lowWeight != 0) {
 				preferences.add(List.of(TriRankAspects.lowPoleAspect(attributeValue), lowWeight));
 			}
 			var highWeight = TriRankAspects.highPoleWeight(target);
-			if (highWeight > 0) {
+			if (highWeight != 0) {
 				preferences.add(List.of(TriRankAspects.highPoleAspect(attributeValue), highWeight));
 			}
 		});
