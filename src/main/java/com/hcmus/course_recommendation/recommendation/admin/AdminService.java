@@ -6,7 +6,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,6 +57,7 @@ import com.hcmus.course_recommendation.recommendation.admin.dto.UpdateAdminUserR
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpdateRatingRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpsertAttributeRequest;
 import com.hcmus.course_recommendation.recommendation.admin.dto.UpsertCourseRequest;
+import com.hcmus.course_recommendation.recommendation.fs.model.UserPreferenceData;
 import com.hcmus.course_recommendation.recommendation.model.Attribute;
 import com.hcmus.course_recommendation.recommendation.repository.AttributeRepository;
 import com.hcmus.course_recommendation.tenant.Tenant;
@@ -73,10 +74,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AdminService {
 
-	private static final int RANDOM_RATING_COURSES_PER_USER = 20;
-	private static final int RANDOM_RATING_MIN_SCORE = 1;
-	private static final int RANDOM_RATING_MAX_SCORE = 5;
-	private static final double RATING_NOISE_SIGMA = 0.8;
 	private static final int JDBC_BATCH_SIZE = 1000;
 	private static final int RANDOM_POSTS_PER_COURSE_MIN = 3;
 	private static final int RANDOM_POSTS_PER_COURSE_MAX = 5;
@@ -625,44 +622,90 @@ public class AdminService {
 		ratingRepository.saveAll(ratingsToSave.values());
 	}
 
+	/**
+	 * Regenerates the synthetic dataset for a tenant: per-attribute ratings, overall satisfaction, and
+	 * each generated user's stated preference.
+	 *
+	 * <p>The statistical design lives in {@link SyntheticRatingGenerator}; this method only maps the
+	 * generator's indices onto real database ids and persists the result. Rows are sorted by id first
+	 * so a given {@code seed} reproduces the same dataset no matter what order the database returns
+	 * rows in.
+	 *
+	 * <p>Writing the users' latent taste into {@code user_preference} is what gives the aspect
+	 * scrutability feature a ground truth: the generated preference is, by construction, the target
+	 * that the user's course choices were drawn from.
+	 */
 	@Transactional
 	public void generateRandomUserCourseRatings(Long tenantId, Long seed) {
-		List<User> users = userRepository.findByTenantId(tenantId);
-		List<Course> courses = courseRepository.findByTenantId(tenantId);
-		List<Attribute> attributes = attributeRepository.findByTenantId(tenantId);
+		List<User> users = userRepository.findByTenantId(tenantId).stream()
+			.sorted(Comparator.comparing(User::getId))
+			.toList();
+		List<Course> courses = courseRepository.findByTenantId(tenantId).stream()
+			.sorted(Comparator.comparing(Course::getId))
+			.toList();
+		List<Attribute> attributes = attributeRepository.findByTenantId(tenantId).stream()
+			.sorted(Comparator.comparing(Attribute::getId))
+			.toList();
 		if (users.isEmpty() || courses.isEmpty() || attributes.isEmpty())
 			return;
 
-		Random random = seed != null ? new Random(seed) : new Random();
-		// Stable per-(course, attribute) target so its average settles near that target
-		// instead of regressing to 3 as more ratings are generated.
-		Map<String, Double> targetByCourseAttribute = new LinkedHashMap<>();
-		for (Course course : courses) {
-			for (Attribute attribute : attributes) {
-				targetByCourseAttribute.put(course.getId() + ":" + attribute.getId(), 1 + random.nextDouble() * 4);
-			}
-		}
+		var dataset = SyntheticRatingGenerator.generate(users.size(), courses.size(), attributes.size(), seed);
 
-		List<Object[]> rows = new ArrayList<>();
-		for (User user : users) {
-			List<Course> shuffledCourses = new ArrayList<>(courses);
-			Collections.shuffle(shuffledCourses, random);
-			int courseCount = Math.min(RANDOM_RATING_COURSES_PER_USER, shuffledCourses.size());
-			for (Course course : shuffledCourses.subList(0, courseCount)) {
-				for (Attribute attribute : attributes) {
-					double target = targetByCourseAttribute.get(course.getId() + ":" + attribute.getId());
-					double rawScore = target + random.nextGaussian() * RATING_NOISE_SIGMA;
-					int score = Math.clamp(Math.round(rawScore), RANDOM_RATING_MIN_SCORE, RANDOM_RATING_MAX_SCORE);
-					rows.add(new Object[] {user.getId(), course.getId(), attribute.getId(), score});
-				}
-			}
-		}
-
-		String sql = """
+		batchUpsert("""
 			INSERT INTO user_course_rating (user_id, course_id, attribute_id, score)
 			VALUES (?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE score = VALUES(score)
-			""";
+			""", dataset.attributeRatings().stream()
+			.map(rating -> new Object[] {
+				users.get(rating.userIndex()).getId(),
+				courses.get(rating.courseIndex()).getId(),
+				attributes.get(rating.attributeIndex()).getId(),
+				rating.score()})
+			.toList());
+
+		batchUpsert("""
+			INSERT INTO user_course_satisfaction (user_id, course_id, score)
+			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE score = VALUES(score)
+			""", dataset.satisfactions().stream()
+			.map(satisfaction -> new Object[] {
+				users.get(satisfaction.userIndex()).getId(),
+				courses.get(satisfaction.courseIndex()).getId(),
+				satisfaction.score()})
+			.toList());
+
+		saveGeneratedUserPreferences(tenantId, users, attributes, dataset.userTaste());
+	}
+
+	/** Persists each generated user's latent taste as their stated preference, per algorithm. */
+	private void saveGeneratedUserPreferences(Long tenantId, List<User> users, List<Attribute> attributes,
+		double[][] userTaste) {
+		List<Object[]> rows = new ArrayList<>();
+		for (int userIndex = 0; userIndex < users.size(); userIndex++) {
+			Map<Algorithm, Map<String, Double>> attributeToScoreByAlgorithm = new LinkedHashMap<>();
+			for (int attributeIndex = 0; attributeIndex < attributes.size(); attributeIndex++) {
+				Attribute attribute = attributes.get(attributeIndex);
+				if (attribute.getAlgorithm() == null || attribute.getValue() == null)
+					continue;
+				// The UI works in whole steps, so round the continuous taste onto the 1-5 scale.
+				attributeToScoreByAlgorithm
+					.computeIfAbsent(attribute.getAlgorithm(), algorithm -> new LinkedHashMap<>())
+					.put(attribute.getValue(), (double)Math.round(userTaste[userIndex][attributeIndex]));
+			}
+			String userId = users.get(userIndex).getId();
+			attributeToScoreByAlgorithm.forEach((algorithm, attributeToScore) -> rows.add(new Object[] {
+				algorithm.name(), tenantId, userId,
+				writeValueAsJson(UserPreferenceData.builder().attributeToScore(attributeToScore).build())}));
+		}
+
+		batchUpsert("""
+			INSERT INTO user_preference (algorithm, tenant_id, user_id, data)
+			VALUES (?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE data = VALUES(data)
+			""", rows);
+	}
+
+	private void batchUpsert(String sql, List<Object[]> rows) {
 		for (int i = 0; i < rows.size(); i += JDBC_BATCH_SIZE) {
 			jdbcTemplate.batchUpdate(sql, rows.subList(i, Math.min(i + JDBC_BATCH_SIZE, rows.size())));
 		}

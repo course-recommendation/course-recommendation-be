@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hcmus.course_recommendation.course.model.Algorithm;
+import com.hcmus.course_recommendation.course.model.CourseAttributeScoreSummary;
 import com.hcmus.course_recommendation.course.model.UserCourseRating;
 
 public interface UserCourseRatingRepository extends JpaRepository<UserCourseRating, Long> {
@@ -31,6 +32,17 @@ public interface UserCourseRatingRepository extends JpaRepository<UserCourseRati
 		AND c.tenantId = :tenantId
 		""")
 	List<UserCourseRating> findByAlgorithmAndTenantId(Algorithm algorithm, Long tenantId);
+
+	@Query("""
+		SELECT new com.hcmus.course_recommendation.course.model.CourseAttributeScoreSummary(
+			ucr.courseId, ucr.attributeId, AVG(ucr.score), COUNT(ucr))
+		FROM UserCourseRating ucr
+		JOIN Course c ON ucr.courseId = c.id
+		WHERE c.algorithm = :algorithm
+		AND c.tenantId = :tenantId
+		GROUP BY ucr.courseId, ucr.attributeId
+		""")
+	List<CourseAttributeScoreSummary> findCourseAttributeScoreSummaries(Algorithm algorithm, Long tenantId);
 
 	@Query(value = """
 		SELECT ucr FROM UserCourseRating ucr
