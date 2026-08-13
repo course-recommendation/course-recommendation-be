@@ -139,6 +139,7 @@ public class FSService {
 		var clientRequest = ClientFSRefinedRecommendationRequest.builder()
 			.attributes(attributes.stream().map(Attribute::getValue).toList())
 			.itemIdToItemSentiments(fsMapper.toStringToClientFSItemSentiments(itemIdToItemSentiments))
+			.itemId(request.getItemId())
 			.oldAttributeToPreferenceConfigure(fsMapper.toStringToClientFSPreferenceConfigure(
 				recommendationResultData.attributeToPreferenceConfigure()))
 			.category(request.getCategory())

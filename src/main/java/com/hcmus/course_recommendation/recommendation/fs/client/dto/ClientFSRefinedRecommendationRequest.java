@@ -12,6 +12,8 @@ import tools.jackson.databind.annotation.JsonNaming;
 public record ClientFSRefinedRecommendationRequest(
 	List<String> attributes,
 	Map<String, List<ClientFSItemSentiment>> itemIdToItemSentiments,
+	// The item the user endorsed; the recommender retargets onto its sentiments.
+	String itemId,
 	List<ClientFSTradeoffPair> itemTradeoffVector,
 	List<ClientFSTradeoffPair> category,
 	Map<String, ClientFSPreferenceConfigure> oldAttributeToPreferenceConfigure
